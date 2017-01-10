@@ -45,7 +45,7 @@ public:
 		mlLastAlignedIndx=0;
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
-		
+
 	}
 	struct tCamPose //t means struct
 	{

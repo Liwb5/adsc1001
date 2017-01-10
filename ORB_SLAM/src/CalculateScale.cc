@@ -116,11 +116,13 @@ void CalculateScale::mAddIMUData(imuSubscriber* pIMUSub,long AlignedIndx)
 
 void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 {
+	if(mvpCamPose.size() < 2)
+		return;
 	long MaxIndx=(pIMUSub->mvIMUData).size()-1;
 	//look for the nearest imu timestamp index, using binary search method
 	long AlignedIndx;
-	tCamPose pCamPose = mvpCamPose[mvpCamPose.size()-1];
-	double CamTimeStamp=pCamPose.TimeStamp;
+	//tCamPose pCamPose = mvpCamPose[mvpCamPose.size()-1];
+	double CamTimeStamp=(mvpCamPose[mvpCamPose.size()-2]).TimeStamp;
 	//binary_search(vpIMU,mlLastAlignedIndx,MaxIndx);
 	double IMUTimeStamp;
 	long MidIndx;
@@ -150,6 +152,8 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 	{
 		AlignedIndx = RightIndx;
 	}
+	//AlignedIndx = MaxIndx;
+	cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
 	if(mlImageNum==1)
 		mlLastAlignedIndx=AlignedIndx-1;
 	//
@@ -164,7 +168,7 @@ void CalculateScale::mIfStartToCalScale()
 	if(mbStartToCalScale)
 		return;
 
-	if(mlImageNum>=3*mnImageWindowForDisplacement+1)//31
+	if(mlImageNum>=3*mnImageWindowForDisplacement+2)//31
 		mbStartToCalScale=1;
 }
 void CalculateScale::mIfStartToMedian()
@@ -188,7 +192,7 @@ void CalculateScale::mCalRawScale()
 {
 	if(!mbStartToCalScale)
 		return;
-	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3>mvpCamPose.size()-1)
+	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3>mvpCamPose.size()-2)
 		return;
 	//image indx
 	long ImageIndx0=mlImageIndxForDisplacement;

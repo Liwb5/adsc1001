@@ -154,7 +154,7 @@ void CalculateScale::mCalRawScale()
 {
 	if(!mbStartToCalScale)
 		return;
-	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3<mvpCamPose.size()-1)
+	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3>mvpCamPose.size()-1)
 		return;
 	//image indx
 	long ImageIndx0=mlImageIndxForDisplacement;
@@ -251,10 +251,10 @@ void CalculateScale::mCalRawScale()
 	float s2_bias2=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
-		t=(mvpIMU[IMUIndx1-i+1]).TimeStamp-(mvpIMU[IMUIndx1-i]).TimeStamp;
-		a[0]=(mvpIMU[IMUIndx1-i+1]).Acc[0];
-		a[1]=(mvpIMU[IMUIndx1-i+1]).Acc[1];
-		a[2]=(mvpIMU[IMUIndx1-i+1]).Acc[2];
+		t=(mvpIMU[IMUIndx2-i+1]).TimeStamp-(mvpIMU[IMUIndx2-i]).TimeStamp;
+		a[0]=(mvpIMU[IMUIndx2-i+1]).Acc[0];
+		a[1]=(mvpIMU[IMUIndx2-i+1]).Acc[1];
+		a[2]=(mvpIMU[IMUIndx2-i+1]).Acc[2];
 
 		s[0]=s[0]+v[0]*t+0.5*a[0]*t*t;
 		s[1]=s[1]+v[1]*t+0.5*a[1]*t*t;
@@ -280,10 +280,10 @@ void CalculateScale::mCalRawScale()
 	float s3_bias=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
-		t=(mvpIMU[IMUIndx1+i]).TimeStamp-(mvpIMU[IMUIndx1+i-1]).TimeStamp;
-		a[0]=(mvpIMU[IMUIndx1+i]).Acc[0];
-		a[1]=(mvpIMU[IMUIndx1+i]).Acc[1];
-		a[2]=(mvpIMU[IMUIndx1+i]).Acc[2];
+		t=(mvpIMU[IMUIndx2+i]).TimeStamp-(mvpIMU[IMUIndx2+i-1]).TimeStamp;
+		a[0]=(mvpIMU[IMUIndx2+i]).Acc[0];
+		a[1]=(mvpIMU[IMUIndx2+i]).Acc[1];
+		a[2]=(mvpIMU[IMUIndx2+i]).Acc[2];
 
 		s[0]=s[0]+v[0]*t+0.5*a[0]*t*t;
 		s[1]=s[1]+v[1]*t+0.5*a[1]*t*t;
@@ -368,15 +368,20 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 		return;
 
 	float scale_tmp=mvfScale[mvfScale.size()-1];
-	int right_position=0;
+	int right_position=-1;
 	//
-	for(int i=0;i<mnWindowForMedian;i++)
+	for(int i=1;i<mnWindowForMedian;i++)
 	{
 		if(mfRawScaleInWindow[i]>scale_tmp)
 		{
 			right_position=i-1;//so position may be -1, but it does not matter
 			break;
 		}
+	}
+
+	if(right_position == -1)
+	{
+		right_position = mnWindowForMedian-1;
 	}
 	//insert the new scale value into scale array
 	for(int i=1;i<=right_position;i++)

@@ -32,21 +32,9 @@ class imuSubscriber;//IMU
 class CalculateScale
 {
 public:
-	CalculateScale()
-	{
-		mnImageStep = 2;
-		mnImageWindowForDisplacement=10;
-		mnWindowForMedian=20;
-		mfRawScaleInWindow=new float[mnWindowForMedian];
-		//
-		mbStartToMedian=false;
-		mbStartToCalScale=false;
-		mlImageNum=0;
-		mlLastAlignedIndx=0;
-		mlImageIndxForDisplacement=0;
-		mfFinalScale=-1;
+	CalculateScale();
+	CalculateScale(const CalculateScale &CalScale); //copy all the data
 
-	}
 	struct tCamPose //t means struct
 	{
 		double TimeStamp;
@@ -75,7 +63,7 @@ public:
 	void mGetLastTranslation(float* LastTrans);
 	tCamPose mCurCamPose;//edit 1001
 
-private:
+//private:
 	//IMU
 	imuSubscriber* mpIMUSub;
 	//

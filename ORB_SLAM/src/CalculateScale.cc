@@ -25,6 +25,64 @@ using namespace std;
 
 namespace ORB_SLAM
 {
+	CalculateScale::CalculateScale()
+	{
+		mnImageStep = 2;
+		mnImageWindowForDisplacement=10;
+		mnWindowForMedian=20;
+		mfRawScaleInWindow=new float[mnWindowForMedian];
+		//
+		mbStartToMedian=false;
+		mbStartToCalScale=false;
+		mlImageNum=0;
+		mlLastAlignedIndx=0;
+		mlImageIndxForDisplacement=0;
+		mfFinalScale=-1;
+
+	}
+
+	CalculateScale::CalculateScale(const CalculateScale &CalScale) //copy all the data
+:mnImageStep(CalScale.mnImageStep),mnImageWindowForDisplacement(CalScale.mnImageWindowForDisplacement),
+ mnWindowForMedian(CalScale.mnWindowForMedian),mbStartToMedian(CalScale.mbStartToMedian),
+ mbStartToCalScale(CalScale.mbStartToCalScale),mlImageNum(CalScale.mlImageNum),mlLastAlignedIndx(CalScale.mlLastAlignedIndx),
+ mlImageIndxForDisplacement(CalScale.mlImageIndxForDisplacement),mfFinalScale(CalScale.mfFinalScale)
+{
+	//copy array data
+	mfRawScaleInWindow=new float[mnWindowForMedian];
+	for(int i=0;i<mnWindowForMedian;i++)
+	{
+		mfRawScaleInWindow[i]=CalScale.mfRawScaleInWindow[i];
+	}
+	//copy vector data, to do
+	//...
+}
+
+void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
+{
+	//inverse q
+	q[1]=-q[1];
+	q[2]=-q[2];
+	q[3]=-q[3];
+	//get acc value temporarily
+	float v[3];
+	v[0]=acc[0];v[1]=acc[1];v[2]=acc[2];
+	//to rotation
+	float rot[3][3];
+	rot[0][0]=q[0]*q[0]+q[1]*q[1]-q[2]*q[2]-q[3]*q[3];
+	rot[0][1]=2*(q[1]*q[2]+q[0]*q[3]);
+	rot[0][2]=2*(q[1]*q[3]-q[0]*q[2]);
+	rot[1][0]=2*(q[1]*q[2]-q[0]*q[3]);
+	rot[1][1]=q[0]*q[0]-q[1]*q[1]+q[2]*q[2]-q[3]*q[3];
+	rot[1][2]=2*(q[2]*q[3]+q[0]*q[1]);
+	rot[2][0]=2*(q[1]*q[3]+q[0]*q[2]);
+	rot[2][1]=2*(q[2]*q[3]-q[0]*q[1]);
+	rot[2][2]=q[0]*q[0]-q[1]*q[1]-q[2]*q[2]+q[3]*q[3];
+	//rotation multiply acc, fresh acc
+	acc[0]=rot[0][0]*v[0]+rot[0][1]*v[1]+rot[0][2]*v[2];
+	acc[1]=rot[1][0]*v[0]+rot[1][1]*v[1]+rot[1][2]*v[2];
+	acc[2]=rot[2][0]*v[0]+rot[2][1]*v[1]+rot[2][2]*v[2];
+}
+
 void CalculateScale::mAddCamPose(tCamPose& pCamPose)
 {
 	mvpCamPose.push_back(pCamPose);
@@ -55,31 +113,7 @@ void CalculateScale::mAddIMUData(imuSubscriber* pIMUSub,long AlignedIndx)
 	//refresh vector of mvlAlignedIndx
 	mvlAlignedIndx.push_back(mvpIMU.size()-1);
 }
-void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
-{
-	//inverse q
-	q[1]=-q[1];
-	q[2]=-q[2];
-	q[3]=-q[3];
-	//get acc value temporarily
-	float v[3];
-	v[0]=acc[0];v[1]=acc[1];v[2]=acc[2];
-	//to rotation
-	float rot[3][3];
-	rot[0][0]=q[0]*q[0]+q[1]*q[1]-q[2]*q[2]-q[3]*q[3];
-	rot[0][1]=2*(q[1]*q[2]+q[0]*q[3]);
-	rot[0][2]=2*(q[1]*q[3]-q[0]*q[2]);
-	rot[1][0]=2*(q[1]*q[2]-q[0]*q[3]);
-	rot[1][1]=q[0]*q[0]-q[1]*q[1]+q[2]*q[2]-q[3]*q[3];
-	rot[1][2]=2*(q[2]*q[3]+q[0]*q[1]);
-	rot[2][0]=2*(q[1]*q[3]+q[0]*q[2]);
-	rot[2][1]=2*(q[2]*q[3]-q[0]*q[1]);
-	rot[2][2]=q[0]*q[0]-q[1]*q[1]-q[2]*q[2]+q[3]*q[3];
-	//rotation multiply acc, fresh acc
-	acc[0]=rot[0][0]*v[0]+rot[0][1]*v[1]+rot[0][2]*v[2];
-	acc[1]=rot[1][0]*v[0]+rot[1][1]*v[1]+rot[1][2]*v[2];
-	acc[2]=rot[2][0]*v[0]+rot[2][1]*v[1]+rot[2][2]*v[2];
-}
+
 void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 {
 	long MaxIndx=(pIMUSub->mvIMUData).size()-1;

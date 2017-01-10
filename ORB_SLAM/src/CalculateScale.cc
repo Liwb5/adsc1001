@@ -154,7 +154,7 @@ void CalculateScale::mCalRawScale()
 {
 	if(!mbStartToCalScale)
 		return;
-	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3<mvpCamPose.size()-1)
+	if(mlImageIndxForDisplacement+mnImageWindowForDisplacement*3>mvpCamPose.size()-1)
 		return;
 	//image indx
 	long ImageIndx0=mlImageIndxForDisplacement;
@@ -368,15 +368,19 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 		return;
 
 	float scale_tmp=mvfScale[mvfScale.size()-1];
-	int right_position=0;
+	int right_position=-1;
 	//
-	for(int i=0;i<mnWindowForMedian;i++)
+	for(int i=1;i<mnWindowForMedian;i++)
 	{
 		if(mfRawScaleInWindow[i]>scale_tmp)
 		{
 			right_position=i-1;//so position may be -1, but it does not matter
 			break;
 		}
+	}
+	if(right_position == -1)
+	{
+		right_position = mnWindowForMedian-1;
 	}
 	//insert the new scale value into scale array
 	for(int i=1;i<=right_position;i++)

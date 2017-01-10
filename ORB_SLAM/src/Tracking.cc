@@ -42,6 +42,7 @@ using namespace std;
 #define saveRT2txt
 #define IMUSUB
 #define CALSCALE
+#define debug_
 //******************edit by liwb **************************************//
 
 namespace ORB_SLAM

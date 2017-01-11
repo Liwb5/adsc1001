@@ -373,12 +373,14 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         cout<<"mCalRawScale"<<endl;
         mpCurrentCalScale->mMedian();
         cout<<"mMedian"<<endl;
+/*
         mpCurrentCalScale->mCalFinalScale();
         cout<<"mCalFinalScale"<<endl;
         if(mpCurrentCalScale->mGetFinalScale()>0)
         {
             cout<<mpCurrentCalScale->mGetFinalScale()<<endl;
         }
+*/
     #endif
 
 //******************edit by liwb **************************************//

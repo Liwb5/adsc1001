@@ -22,6 +22,7 @@
 #include<algorithm>
 
 using namespace std;
+#define output_scale_med  //in order to output scale_med data into a txt file, so that we can analysis in matlab
 
 namespace ORB_SLAM
 {
@@ -38,7 +39,9 @@ namespace ORB_SLAM
 		mlLastAlignedIndx=0;
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
-
+    #ifdef output_scale_med
+		outfile.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//记录rotation and translation
+    #endif
 	}
 
 	CalculateScale::CalculateScale(const CalculateScale &CalScale) //copy all the data
@@ -153,7 +156,7 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 		AlignedIndx = RightIndx;
 	}
 	//AlignedIndx = MaxIndx;
-	cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
+	//cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
 	if(mlImageNum==1)
 		mlLastAlignedIndx=AlignedIndx-1;
 	//
@@ -205,7 +208,7 @@ void CalculateScale::mCalRawScale()
 	long IMUIndx2=mvlAlignedIndx[ImageIndx2];
 	long IMUIndx3=mvlAlignedIndx[ImageIndx3];
 	//imu timestamp
-	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;cout<<"233"<<mvpCamPose[ImageIndx0].TimeStamp-IMUTimeStamp0<<endl;
+	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;//cout<<"233"<<mvpCamPose[ImageIndx0].TimeStamp-IMUTimeStamp0<<endl;
 	double IMUTimeStamp1=(mvpIMU[IMUIndx1]).TimeStamp;
 	double IMUTimeStamp2=(mvpIMU[IMUIndx2]).TimeStamp;
 	double IMUTimeStamp3=(mvpIMU[IMUIndx3]).TimeStamp;
@@ -449,7 +452,10 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
-	cout<<scale_med<<endl;
+#ifdef output_scale_med
+	outfile << scale_med<<"\n";
+#endif
+	//cout<<scale_med<<endl;
 }
 void CalculateScale::mCalFinalScale()
 {

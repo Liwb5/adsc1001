@@ -66,6 +66,8 @@ public:
 //private:
 	//IMU
 	imuSubscriber* mpIMUSub;
+	
+	ofstream outfile;//save scale_med into a txt file
 	//
 	bool mbStartToMedian;//init to be false
 	bool mbStartToCalScale;//init to be false
@@ -78,7 +80,7 @@ public:
 	vector<float> mvfScale;//vector of raw scale data
 	vector<float> mvfScaleAfterMedian;//vector of scale data after median process
 
-	unsigned int mnImageStep;
+	unsigned int mnImageStep;//
 	unsigned int mnImageWindowForDisplacement;
     unsigned int mnWindowForMedian;
 	long mlImageIndxForDisplacement;

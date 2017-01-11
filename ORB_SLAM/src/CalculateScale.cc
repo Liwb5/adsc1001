@@ -185,7 +185,7 @@ void CalculateScale::mIfStartToMedian()
 			mfRawScaleInWindow[i]=mvfScale[i];
 		}
 		//sort, in ascending order default
-		sort(mfRawScaleInWindow , mfRawScaleInWindow + mnWindowForMedian);
+		//sort(mfRawScaleInWindow , mfRawScaleInWindow + mnWindowForMedian);
 	}
 }
 void CalculateScale::mCalRawScale()
@@ -205,7 +205,7 @@ void CalculateScale::mCalRawScale()
 	long IMUIndx2=mvlAlignedIndx[ImageIndx2];
 	long IMUIndx3=mvlAlignedIndx[ImageIndx3];
 	//imu timestamp
-	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;
+	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;cout<<"233"<<mvpCamPose[ImageIndx0].TimeStamp-IMUTimeStamp0<<endl;
 	double IMUTimeStamp1=(mvpIMU[IMUIndx1]).TimeStamp;
 	double IMUTimeStamp2=(mvpIMU[IMUIndx2]).TimeStamp;
 	double IMUTimeStamp3=(mvpIMU[IMUIndx3]).TimeStamp;
@@ -406,6 +406,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 		return;
 
 	float scale_tmp=mvfScale[mvfScale.size()-1];
+/*
 	int right_position=-1;
 	//
 	for(int i=1;i<mnWindowForMedian;i++)
@@ -431,9 +432,24 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	//even, mnWindowForMedian/2
 	float scale_med=mfRawScaleInWindow[mnWindowForMedian/2];
 	//odd,  it cause little error, as using mnWindowForMedian/2
-
+*/
+	for(int i=1;i<mnWindowForMedian;i++)
+	{
+		mfRawScaleInWindow[i-1]=mfRawScaleInWindow[i];
+	}
+	mfRawScaleInWindow[mnWindowForMedian-1] = scale_tmp;
+	//copy
+	float* TmpRawScaleInWindow = new float[mnWindowForMedian];
+	for(int i=0;i<mnWindowForMedian;i++)
+	{
+		TmpRawScaleInWindow[i] = mfRawScaleInWindow[i];
+	}
+	sort(TmpRawScaleInWindow , TmpRawScaleInWindow + mnWindowForMedian);
+	//median
+	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
+	cout<<scale_med<<endl;
 }
 void CalculateScale::mCalFinalScale()
 {

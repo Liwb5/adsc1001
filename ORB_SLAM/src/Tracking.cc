@@ -155,7 +155,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     #ifdef CALSCALE
     //if(mState==WORKING)//it means initializing successfully
     {
-        cout<<"new a class"<<endl;
+        cout<<"creat a new object of CalculateScale"<<endl;
         mpCurrentCalScale = new CalculateScale;
     }
     #endif
@@ -360,21 +360,21 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         TmpCamPose.Translation[1]=twc.at<float>(1);
         TmpCamPose.Translation[2]=twc.at<float>(2);
         //
-        cout<<"enter calculate scale"<<endl;
+        //cout<<"enter calculate scale"<<endl;
         mpCurrentCalScale->mAddCamPose(TmpCamPose);
-        cout<<"mAddCamPose(TmpCamPose);"<<endl;
+        //cout<<"mAddCamPose(TmpCamPose);"<<endl;
         mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
-        cout<<"mAlignCamAndIMU"<<endl;
+        //cout<<"mAlignCamAndIMU"<<endl;
         mpCurrentCalScale->mIfStartToCalScale();
-        cout<<"mIfStartToCalScale"<<endl;
+        //cout<<"mIfStartToCalScale"<<endl;
         mpCurrentCalScale->mIfStartToMedian();
-        cout<<"mIfStartToMedian"<<endl;
+        //cout<<"mIfStartToMedian"<<endl;
         mpCurrentCalScale->mCalRawScale();
-        cout<<"mCalRawScale"<<endl;
+        //cout<<"mCalRawScale"<<endl;
         mpCurrentCalScale->mMedian();
-        cout<<"mMedian"<<endl;
+        //cout<<"mMedian"<<endl;
         mpCurrentCalScale->mCalFinalScale();
-        cout<<"mCalFinalScale"<<endl;
+        //cout<<"mCalFinalScale"<<endl;
         if(mpCurrentCalScale->mGetFinalScale()>0)
         {
             cout<<mpCurrentCalScale->mGetFinalScale()<<endl;

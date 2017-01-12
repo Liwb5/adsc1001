@@ -375,7 +375,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         //cout<<"mIfStartToMedian"<<endl;
         mpCurrentCalScale->mCalRawScale();
         //cout<<"mCalRawScale"<<endl;
-        mpCurrentCalScale->mMedian();
+        //mpCurrentCalScale->mMedian();
         //cout<<"mMedian"<<endl;
         
 /*

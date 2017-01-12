@@ -397,7 +397,7 @@ void CalculateScale::mCalRawScale()
 	float fRawScale=delta_s_len/delta_tr_len;
 	//push
 	mvfScale.push_back(fRawScale);
-
+	mMedian();
 	//fresh variables for next call
     mlImageIndxForDisplacement=mlImageIndxForDisplacement+mnImageStep;
 }
@@ -405,10 +405,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 {
 	if(!mbStartToMedian)
 		return;
-
-	if(mlImageIndxForDisplacement-mnImageStep+mnImageWindowForDisplacement*3>mvpCamPose.size()-2)
-		return;
-
+	
 	float scale_tmp=mvfScale[mvfScale.size()-1];
 /*
 	int right_position=-1;
@@ -453,7 +450,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
-
+	
 }
 void CalculateScale::mCalFinalScale()
 {

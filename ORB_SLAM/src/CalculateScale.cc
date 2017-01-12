@@ -39,9 +39,7 @@ namespace ORB_SLAM
 		mlLastAlignedIndx=0;
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
-    #ifdef output_scale_med
-		outfile.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//记录rotation and translation
-    #endif
+
 	}
 
 	CalculateScale::CalculateScale(const CalculateScale &CalScale) //copy all the data
@@ -408,6 +406,9 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	if(!mbStartToMedian)
 		return;
 
+	if(mlImageIndxForDisplacement-mnImageStep+mnImageWindowForDisplacement*3>mvpCamPose.size()-2)
+		return;
+
 	float scale_tmp=mvfScale[mvfScale.size()-1];
 /*
 	int right_position=-1;
@@ -452,10 +453,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
-#ifdef output_scale_med
-	outfile << scale_med<<"\n";
-#endif
-	//cout<<scale_med<<endl;
+
 }
 void CalculateScale::mCalFinalScale()
 {

@@ -40,6 +40,7 @@
 using namespace std;
 //******************edit by liwb **************************************//
 #define saveRT2txt
+#define output_scale_med
 #define IMUSUB
 #define CALSCALE
 #define debug_
@@ -55,9 +56,12 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 {
 
 //******************edit by liwb **************************************//
-    #ifdef saveRT2txt
+#ifdef saveRT2txt
     outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//记录rotation and translation
-    #endif
+#endif
+#ifdef output_scale_med
+	outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//记录rotation and translation
+#endif
 //******************edit by liwb **************************************//
     // Load camera parameters from settings file
 
@@ -373,6 +377,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         //cout<<"mCalRawScale"<<endl;
         mpCurrentCalScale->mMedian();
         //cout<<"mMedian"<<endl;
+        
 /*
 		mpCurrentCalScale->mCalFinalScale();
         //cout<<"mCalFinalScale"<<endl;
@@ -382,6 +387,15 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         }
 */
     #endif
+	#ifdef output_scale_med
+        //cout<<"attend to capture scale_med"<<endl;
+        if(mpCurrentCalScale->mvfScaleAfterMedian.size() != 0)
+        {
+            float tmp = mpCurrentCalScale->mvfScaleAfterMedian.back();
+    		outfile_scale_med<<tmp<<"\n";
+    		cout<<tmp<<endl;
+        }
+	#endif
 
 //******************edit by liwb **************************************//
     }

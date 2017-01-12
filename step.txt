@@ -14,3 +14,14 @@ add #define saveRT2txt in Tracking.cc and Tracking.h files.
 
 then the R_and_T.txt file will be saved in /home/liwb/Documents/output/
 
+
+collect data 
+
+roslaunch ../launch/mycamera.launch
+
+roslaunch readImageFromUSB.launch 
+
+rosrun imu_image imu_recieve 
+
+rosbag record -O b1101_1 /imuData /usb_cam/image_raw
+

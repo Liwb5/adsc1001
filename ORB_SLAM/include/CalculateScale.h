@@ -78,9 +78,9 @@ public:
 	vector<float> mvfScale;//vector of raw scale data
 	vector<float> mvfScaleAfterMedian;//vector of scale data after median process
 
-	unsigned int mnImageStep;
-	unsigned int mnImageWindowForDisplacement;
-    unsigned int mnWindowForMedian;
+	int mnImageStep;
+	int mnImageWindowForDisplacement;
+    int mnWindowForMedian;
 	long mlImageIndxForDisplacement;
 	float* mfRawScaleInWindow;
 	float mfFinalScale;//mean, or median

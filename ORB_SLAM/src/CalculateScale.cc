@@ -154,7 +154,7 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 		AlignedIndx = RightIndx;
 	}
 	//AlignedIndx = MaxIndx;
-	//cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
+	cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
 	if(mlImageNum==1)
 		mlLastAlignedIndx=AlignedIndx-1;
 	//

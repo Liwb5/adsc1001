@@ -393,7 +393,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             float tmp = mpCurrentCalScale->mvfScaleAfterMedian.back();
     		outfile_scale_med<<tmp<<"\n";
-    		cout<<tmp<<endl;
+    		//cout<<tmp<<endl;
         }
 	#endif
 

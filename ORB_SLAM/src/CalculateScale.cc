@@ -20,7 +20,7 @@
 #include<iostream>
 #include<fstream>
 #include<algorithm>
-
+#include<stdlib.h>
 using namespace std;
 #define output_scale_med  //in order to output scale_med data into a txt file, so that we can analysis in matlab
 
@@ -129,6 +129,9 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 	long MidIndx;
 	long LeftIndx=mlLastAlignedIndx+1;
 	long RightIndx=MaxIndx;
+
+	//cout<<RightIndx-LeftIndx+1<<"  ";
+
 	while(RightIndx - LeftIndx >=2)
 	{
 		MidIndx=LeftIndx+(RightIndx-LeftIndx)/2; //avoid expression: TmpIndx=(RightIndx+LeftIndx)/2
@@ -145,16 +148,26 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 	//RightIndx-LeftIndx is 1 or 0;
 	if(RightIndx-LeftIndx==1)
 	{
-		long IMUTimeStampRight= (pIMUSub->mvIMUData[RightIndx]).timeStamp;
-		long IMUTimeStampLeft = (pIMUSub->mvIMUData[LeftIndx]).timeStamp;
-		AlignedIndx = (abs(IMUTimeStampRight-CamTimeStamp)<abs(IMUTimeStampLeft-CamTimeStamp))?LeftIndx:RightIndx;
+		double IMUTimeStampRight= (pIMUSub->mvIMUData[RightIndx]).timeStamp;
+		double IMUTimeStampLeft = (pIMUSub->mvIMUData[LeftIndx]).timeStamp;
+		AlignedIndx = (abs(IMUTimeStampRight-CamTimeStamp)<abs(IMUTimeStampLeft-CamTimeStamp))?RightIndx:LeftIndx;
 	}
 	else //if(RightIndx-LeftIndx==0)
 	{
 		AlignedIndx = RightIndx;
 	}
-	//AlignedIndx = MaxIndx;
-	cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
+/*
+	double tmp = (pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp;
+	cout<< tmp;
+	if(abs(tmp) - 0.01 > 0)
+	{
+		cout<<"bigger than 0.01"<<endl;
+	}
+	else
+	{
+		cout<<endl;
+	}
+*/
 	if(mlImageNum==1)
 		mlLastAlignedIndx=AlignedIndx-1;
 	//
@@ -405,7 +418,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 {
 	if(!mbStartToMedian)
 		return;
-	
+
 	float scale_tmp=mvfScale[mvfScale.size()-1];
 /*
 	int right_position=-1;
@@ -450,7 +463,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
-	
+
 }
 void CalculateScale::mCalFinalScale()
 {

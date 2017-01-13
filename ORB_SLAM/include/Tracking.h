@@ -69,7 +69,6 @@ public:
     Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath,imuSubscriber* pIMUSub);
 
     ofstream outfile;//save RT data to txt
-	ofstream outfile_scale_med; //save scale_med into a txt file
 
     //subscribe imu data from topic /imuData
     imuSubscriber* mIMUSub;

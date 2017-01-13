@@ -66,6 +66,7 @@ public:
 //private:
 	//IMU
 	imuSubscriber* mpIMUSub;
+	ofstream outfile_scale_med; //save scale_med into a txt file
 	//
 	bool mbStartToMedian;//init to be false
 	bool mbStartToCalScale;//init to be false

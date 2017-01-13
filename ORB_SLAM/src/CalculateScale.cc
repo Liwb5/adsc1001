@@ -28,8 +28,8 @@ namespace ORB_SLAM
 {
 	CalculateScale::CalculateScale()
 	{
-		mnImageStep = 2;
-		mnImageWindowForDisplacement=10;
+		mnImageStep = 8;
+		mnImageWindowForDisplacement=40;
 		mnWindowForMedian=20;
 		mfRawScaleInWindow=new float[mnWindowForMedian];
 		//
@@ -39,7 +39,9 @@ namespace ORB_SLAM
 		mlLastAlignedIndx=0;
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
-
+	#ifdef output_scale_med
+		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//record rotation and translation
+	#endif
 	}
 
 	CalculateScale::CalculateScale(const CalculateScale &CalScale) //copy all the data
@@ -56,6 +58,9 @@ namespace ORB_SLAM
 	}
 	//copy vector data, to do
 	//...
+	#ifdef output_scale_med
+		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//record rotation and translation
+	#endif
 }
 
 void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
@@ -463,6 +468,11 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
+
+	#ifdef output_scale_med
+		outfile_scale_med<<scale_med<<endl;
+		//cout<<tmp<<endl;
+	#endif
 
 }
 void CalculateScale::mCalFinalScale()

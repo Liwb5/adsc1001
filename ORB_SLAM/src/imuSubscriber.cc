@@ -1,13 +1,18 @@
 #include "imuSubscriber.h"
 #include <ros/ros.h>
 #include <iostream>
+#include <fstream>
 using namespace std;
+
+#define output_imuData
 
 namespace ORB_SLAM
 {
     imuSubscriber::imuSubscriber()
     {
-
+        #ifdef output_imuData
+        	outfile_imuData.open("/home/liwb/Documents/output/imu2.txt",ios::binary);//record imu data
+        #endif
     }
     void imuSubscriber::Run()
     {
@@ -29,7 +34,9 @@ namespace ORB_SLAM
         mIMUData.Quat.z = msg.quat_z;
 
         mvIMUData.push_back(mIMUData);
-
+    #ifdef output_imuData
+        outfile_imuData<<std::fixed<<mIMUData.timeStamp<<" "<<mIMUData.LinearAccel.x<<" "<<mIMUData.LinearAccel.y<<" "<<mIMUData.LinearAccel.z<<" "<<mIMUData.Quat.w<<" "<<mIMUData.Quat.x<<" "<<mIMUData.Quat.y<<" "<<mIMUData.Quat.z<<"\n";
+    #endif
         //test();//for debug
     }
 

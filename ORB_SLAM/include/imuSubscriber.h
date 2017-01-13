@@ -5,6 +5,12 @@
 #include "ORB_SLAM/imuData.h"
 #include <vector>
 
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <stdlib.h>
+#include <stdio.h>
+
 namespace ORB_SLAM
 {
     struct Acceleration
@@ -38,7 +44,7 @@ namespace ORB_SLAM
         void test();
 
         std::vector<IMU_Data> mvIMUData;
-
+        std::ofstream outfile_imuData; //save imu data into a txt file
     protected:
         IMU_Data mIMUData;
         ros::NodeHandle mNH;

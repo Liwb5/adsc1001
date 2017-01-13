@@ -57,10 +57,10 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 
 //******************edit by liwb **************************************//
 #ifdef saveRT2txt
-    outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//记录rotation and translation
+    outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//record rotation and translation
 #endif
 #ifdef output_scale_med
-	outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//记录rotation and translation
+	outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//record rotation and translation
 #endif
 //******************edit by liwb **************************************//
     // Load camera parameters from settings file
@@ -377,7 +377,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         //cout<<"mCalRawScale"<<endl;
         //mpCurrentCalScale->mMedian();
         //cout<<"mMedian"<<endl;
-        
+
 /*
 		mpCurrentCalScale->mCalFinalScale();
         //cout<<"mCalFinalScale"<<endl;

@@ -228,14 +228,14 @@ void CalculateScale::mCalRawScale()
 	float t2 = IMUTimeStamp2 - IMUTimeStamp1;
 	float t3 = IMUTimeStamp3 - IMUTimeStamp2;
 	//s1
-	float s1[3]={0.0,0.0,0.0};//
+	double s1[3]={0.0,0.0,0.0};//
 	int n=IMUIndx1-IMUIndx0;
-	float time_sum=0.0;
-	float a[3]={0.0,0.0,0.0};//acceleration
-	float v[3]={0.0,0.0,0.0};//speed
-	float s[3]={0.0,0.0,0.0};//displacement
-	float t;//time
-	float s1_bias=0.0;//coefficient of bias
+	double time_sum=0.0;
+	double a[3]={0.0,0.0,0.0};//acceleration
+	double v[3]={0.0,0.0,0.0};//speed
+	double s[3]={0.0,0.0,0.0};//displacement
+	double t;//time
+	double s1_bias=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
 		t=(mvpIMU[IMUIndx1-i+1]).TimeStamp-(mvpIMU[IMUIndx1-i]).TimeStamp;
@@ -257,14 +257,14 @@ void CalculateScale::mCalRawScale()
 	s1[2]=-s[2];
 	s1_bias=-s1_bias;
 	//s2
-	float s2[3]={0.0,0.0,0.0};//
+	double s2[3]={0.0,0.0,0.0};//
 	n=IMUIndx2-IMUIndx1;
 	time_sum=0.0;
 	a[0]=0.0;a[1]=0.0;a[2]=0.0;//acceleration
 	v[0]=0.0;v[1]=0.0;v[2]=0.0;//speed
 	s[0]=0.0;s[1]=0.0;s[2]=0.0;//displacement
 	//t;//time
-	float s2_bias=0.0;//coefficient of bias
+	double s2_bias=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
 		t=(mvpIMU[IMUIndx1+i]).TimeStamp-(mvpIMU[IMUIndx1+i-1]).TimeStamp;
@@ -286,13 +286,13 @@ void CalculateScale::mCalRawScale()
 	s2[2]=s[2];
 	s2_bias=s2_bias;
 	//delta1_s
-	float delta1_s[3];
+	double delta1_s[3];
 	delta1_s[0]=s2[0]-s1[0]*t2/t1;
 	delta1_s[1]=s2[1]-s1[1]*t2/t1;
 	delta1_s[2]=s2[2]-s1[2]*t2/t1;
 
 	//s2
-	//float s2[3]={0.0,0.0,0.0};//
+	//double s2[3]={0.0,0.0,0.0};//
 	s2[0]=0.0;s2[1]=0.0;s2[2]=0.0;
 	n=IMUIndx2-IMUIndx1;
 	time_sum=0.0;
@@ -300,7 +300,7 @@ void CalculateScale::mCalRawScale()
 	v[0]=0.0;v[1]=0.0;v[2]=0.0;//speed
 	s[0]=0.0;s[1]=0.0;s[2]=0.0;//displacement
 	//t;//time
-	float s2_bias2=0.0;//coefficient of bias
+	double s2_bias2=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
 		t=(mvpIMU[IMUIndx2-i+1]).TimeStamp-(mvpIMU[IMUIndx2-i]).TimeStamp;
@@ -322,14 +322,14 @@ void CalculateScale::mCalRawScale()
 	s2[2]=-s[2];
 	s2_bias2=-s2_bias2;
 	//s3
-	float s3[3]={0.0,0.0,0.0};//
+	double s3[3]={0.0,0.0,0.0};//
 	n=IMUIndx3-IMUIndx2;
 	time_sum=0.0;
 	a[0]=0.0;a[1]=0.0;a[2]=0.0;//acceleration
 	v[0]=0.0;v[1]=0.0;v[2]=0.0;//speed
 	s[0]=0.0;s[1]=0.0;s[2]=0.0;//displacement
 	//t;//time
-	float s3_bias=0.0;//coefficient of bias
+	double s3_bias=0.0;//coefficient of bias
 	for(int i=1;i<=n;i++)
 	{
 		t=(mvpIMU[IMUIndx2+i]).TimeStamp-(mvpIMU[IMUIndx2+i-1]).TimeStamp;
@@ -351,13 +351,13 @@ void CalculateScale::mCalRawScale()
 	s3[2]=s[2];
 	s3_bias=s3_bias;
 	//
-	float delta2_s[3];
+	double delta2_s[3];
 	delta2_s[0]=s3[0]-s2[0]*t3/t2;
 	delta2_s[1]=s3[1]-s2[1]*t3/t2;
 	delta2_s[2]=s3[2]-s2[2]*t3/t2;
 	//
-	float  delta_s[3];
-	float  denominator=(s2_bias-s1_bias*t2/t1);
+	double  delta_s[3];
+	double  denominator=(s2_bias-s1_bias*t2/t1);
 	//sometimes the denominator is near zero, so there may be a bug
 	if(denominator<0.00001&&denominator>-0.00001)
 	{
@@ -368,9 +368,9 @@ void CalculateScale::mCalRawScale()
 	delta_s[2]=delta2_s[2]-delta1_s[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
 
 	//orbslam translation
-	float tr1[3];
-	float tr2[3];
-	float tr3[3];
+	double tr1[3];
+	double tr2[3];
+	double tr3[3];
 	//tr1
 	tr1[0]=mvpCamPose[ImageIndx1].Translation[0]-mvpCamPose[ImageIndx0].Translation[0];
 	tr1[1]=mvpCamPose[ImageIndx1].Translation[1]-mvpCamPose[ImageIndx0].Translation[1];
@@ -384,7 +384,7 @@ void CalculateScale::mCalRawScale()
 	tr3[1]=mvpCamPose[ImageIndx3].Translation[1]-mvpCamPose[ImageIndx2].Translation[1];
 	tr3[2]=mvpCamPose[ImageIndx3].Translation[2]-mvpCamPose[ImageIndx2].Translation[2];
 	//
-	float delta1_tr[3],delta2_tr[3],delta_tr[3];
+	double delta1_tr[3],delta2_tr[3],delta_tr[3];
 	//delta1_tr
 	delta1_tr[0]=tr2[0]-tr1[0]*t2/t1;
 	delta1_tr[1]=tr2[1]-tr1[1]*t2/t1;
@@ -399,15 +399,15 @@ void CalculateScale::mCalRawScale()
 	delta_tr[2]=delta2_tr[2]-delta1_tr[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
 
 	//calculate scale
-	float delta_s_len=sqrt(delta_s[0]*delta_s[0]+delta_s[1]*delta_s[1]+delta_s[2]*delta_s[2]);
-	float delta_tr_len=sqrt(delta_tr[0]*delta_tr[0]+delta_tr[1]*delta_tr[1]+delta_tr[2]*delta_tr[2]);
+	double delta_s_len=sqrt(delta_s[0]*delta_s[0]+delta_s[1]*delta_s[1]+delta_s[2]*delta_s[2]);
+	double delta_tr_len=sqrt(delta_tr[0]*delta_tr[0]+delta_tr[1]*delta_tr[1]+delta_tr[2]*delta_tr[2]);
 	//sometimes the denominator is near zero, so there may be a bug
 	if(delta_tr_len<0.00001&&delta_tr_len>-0.00001)
 	{
 		;
 	}
 	//
-	float fRawScale=delta_s_len/delta_tr_len;
+	double fRawScale=delta_s_len/delta_tr_len;
 	//push
 	mvfScale.push_back(fRawScale);
 	mMedian();

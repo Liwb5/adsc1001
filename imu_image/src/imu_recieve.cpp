@@ -41,18 +41,16 @@ int main(int argc, char **argv)
     ofstream outfile("/home/liwb/Documents/output/imu.txt",ofstream::binary);
 
 
-   imu_image::imuData data;
+    imu_image::imuData data;
     //feof: to jude whether the file is completely read
     while(~feof(file) && ros::ok())
     {
-	if (fgets(buffer,1000,file) == NULL)
-	    break;
+        if (fgets(buffer,1000,file) == NULL)
+	          break;
 
-	ros::spinOnce();
+	    current_time = ros::Time::now();
 
-	current_time = ros::Time::now();
-
-	std::vector<float> v;
+	    std::vector<float> v;
 	// Build an istream that holds the input string
 	std::istringstream iss(buffer);
 
@@ -62,7 +60,7 @@ int main(int argc, char **argv)
 			std::istream_iterator<float>(),
 			std::back_inserter(v)
 		);
-	
+
 	count++;//
 	//save data to a txt file
 	outfile << count << " " << current_time;
@@ -75,19 +73,19 @@ int main(int argc, char **argv)
 	std::cout<<count<<endl;//for test
   data.count = count;
   data.timeStamp = current_time.toSec();
-  data.gravWithAccel_x = v[0];
-  data.gravWithAccel_y = v[1];
-  data.gravWithAccel_z = v[2];
-  data.quat_w = v[3];
-  data.quat_x = v[4];
-  data.quat_y = v[5];
-  data.quat_z = v[6];
-  data.linearAccel_x = v[7];
-  data.linearAccel_y = v[8];
-  data.linearAccel_z = v[9];
-  data.gravity_x = v[10];
-  data.gravity_y = v[11];
-  data.gravity_z = v[12];
+  data.gravWithAccel_x = v[1];//v[0] is the clock time of arduino, ignore it
+  data.gravWithAccel_y = v[2];
+  data.gravWithAccel_z = v[3];
+  data.quat_w = v[4];
+  data.quat_x = v[5];
+  data.quat_y = v[6];
+  data.quat_z = v[7];
+  data.linearAccel_x = v[8];
+  data.linearAccel_y = v[9];
+  data.linearAccel_z = v[10];
+  data.gravity_x = v[11];
+  data.gravity_y = v[12];
+  data.gravity_z = v[13];
   imuData_pub.publish(data);
   ros::spinOnce();
 	loop_rate.sleep();

@@ -62,7 +62,7 @@ public:
 	long mGetLastAlignedIndx();
 	void mGetLastTranslation(float* LastTrans);
 	tCamPose mCurCamPose;//edit 1001
-	
+
 //private:
 	//IMU
 	imuSubscriber* mpIMUSub;

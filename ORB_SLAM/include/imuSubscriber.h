@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 using namespace std;
 

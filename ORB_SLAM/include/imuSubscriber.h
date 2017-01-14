@@ -4,18 +4,13 @@
 #include "ros/ros.h"
 #include "ORB_SLAM/imuData.h"
 #include <vector>
-
 #include <sstream>
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include <stdio.h>
-
+//#include <stdio.h>
 
 using namespace std;
-
-
-
 
 namespace ORB_SLAM
 {

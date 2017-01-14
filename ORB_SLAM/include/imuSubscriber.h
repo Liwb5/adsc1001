@@ -13,6 +13,9 @@
 
 using namespace std;
 
+
+
+   
 namespace ORB_SLAM
 {
     struct Acceleration

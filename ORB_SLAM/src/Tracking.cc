@@ -240,7 +240,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         Initialize();
 
     }
-    else
+    else//mState == WORKING or LOST
     {
         // System is initialized. Track Frame.
         bool bOK;

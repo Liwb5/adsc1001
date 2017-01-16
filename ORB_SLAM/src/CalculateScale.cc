@@ -40,7 +40,7 @@ namespace ORB_SLAM
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
 	#ifdef output_scale_med
-		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//record rotation and translation
+		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary | ios::app);//record rotation and translation
 	#endif
 	}
 
@@ -59,9 +59,15 @@ namespace ORB_SLAM
 	//copy vector data, to do
 	//...
 	#ifdef output_scale_med
-		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary);//record rotation and translation
+		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary | ios::app);//record rotation and translation
 	#endif
 }
+
+	CalculateScale::~CalculateScale()
+	{
+		outfile_scale_med<<999<<endl;
+		outfile_scale_med.close();
+	}
 
 void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
 {
@@ -87,6 +93,10 @@ void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
 	acc[0]=rot[0][0]*v[0]+rot[0][1]*v[1]+rot[0][2]*v[2];
 	acc[1]=rot[1][0]*v[0]+rot[1][1]*v[1]+rot[1][2]*v[2];
 	acc[2]=rot[2][0]*v[0]+rot[2][1]*v[1]+rot[2][2]*v[2];
+
+	q[1]=-q[1];
+	q[2]=-q[2];
+	q[3]=-q[3];
 }
 
 void CalculateScale::mAddCamPose(tCamPose& pCamPose)

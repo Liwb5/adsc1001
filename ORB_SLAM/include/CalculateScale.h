@@ -34,7 +34,7 @@ class CalculateScale
 public:
 	CalculateScale();
 	CalculateScale(const CalculateScale &CalScale); //copy all the data
-
+	~CalculateScale();
 	struct tCamPose //t means struct
 	{
 		double TimeStamp;

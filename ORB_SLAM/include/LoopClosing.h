@@ -44,7 +44,7 @@ class LoopClosing
 {
 public:
 
-    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
+    typedef pair<set<KeyFrame*>,int> ConsistentGroup;
     typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
         Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
 
@@ -61,6 +61,9 @@ public:
     void InsertKeyFrame(KeyFrame *pKF);
 
     void RequestReset();
+
+    void setFlagBeforeLost();
+
 
 protected:
 
@@ -87,6 +90,7 @@ protected:
     LocalMapping *mpLocalMapper;
 
     std::list<KeyFrame*> mlpLoopKeyFrameQueue;
+	long mlLoopKeyFrameQueueSize;//edit by liwb. record the size of mlpLoopKeyFrameQueue when tracking lost.
 
     boost::mutex mMutexLoopQueue;
 
@@ -108,6 +112,7 @@ protected:
     double mScale_cw;
 
     long unsigned int mLastLoopKFid;
+	long unsigned int mLastLoopKFidSize;//edit by liwb. record the value of mLastLoopKFid when tracking lost.
 };
 
 } //namespace ORB_SLAM

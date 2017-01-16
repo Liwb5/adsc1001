@@ -65,7 +65,7 @@ public:
     void SetAcceptKeyFrames(bool flag);
 
     void InterruptBA();
-
+	void setFlagBeforeLost();
 protected:
 
     bool CheckNewKeyFrames();
@@ -91,10 +91,12 @@ protected:
     Tracking* mpTracker;
 
     std::list<KeyFrame*> mlNewKeyFrames;
+	long mlKeyFramesSize;//edit by liwb.record the size of mlNewKeyFrames when tracking lost.
 
     KeyFrame* mpCurrentKeyFrame;
 
     std::list<MapPoint*> mlpRecentAddedMapPoints;
+	long mlRecentAddedMapPointsSize;//edit by liwb.record the size of mlpRecentAddedMapPoints when tracking lost.
 
     boost::mutex mMutexNewKFs;    
 

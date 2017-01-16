@@ -279,13 +279,18 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         else
             mState=LOST;
 
+		if(mState == LOST)
+		{
+			//mpLocalMapper->setFlagBeforeLost();
+            //mpLoopClosing->setFlagBeforeLost();
+		}
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                //Reset();
-                //return;
+                Reset();
+                return;
 				;
             }
         }

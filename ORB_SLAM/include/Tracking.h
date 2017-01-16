@@ -81,9 +81,13 @@ public:
         NOT_INITIALIZED=1,
         INITIALIZING=2,
         WORKING=3,
-        LOST=4
+        LOST=4,
+        REINITIALIZING=5
     };
-
+    void ReInitialize();
+    void FirstReInitialization();
+    void ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
+    
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetKeyFrameDatabase(KeyFrameDatabase* pKFDB);

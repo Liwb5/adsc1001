@@ -33,32 +33,20 @@
 #include"Optimizer.h"
 #include"PnPsolver.h"
 
-#include<iostream>
-#include<fstream>
 
 
 using namespace std;
-//******************edit by liwb **************************************//
-#define saveRT2txt
-#define IMUSUB
-#define CALSCALE
-#define debug_
-//******************edit by liwb **************************************//
 
 namespace ORB_SLAM
 {
 
 
-Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath,imuSubscriber* pIMUSub):
+Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath, imuSubscriber* pIMUSub):
     mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
     mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(false),mIMUSub(pIMUSub)
 {
-
 //******************edit by liwb **************************************//
-#ifdef saveRT2txt
-    outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//record rotation and translation
-#endif
-
+	outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//记录rotation and translation
 //******************edit by liwb **************************************//
     // Load camera parameters from settings file
 
@@ -153,13 +141,6 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     tf::Transform tfT;
     tfT.setIdentity();
     mTfBr.sendTransform(tf::StampedTransform(tfT,ros::Time::now(), "/ORB_SLAM/World", "/ORB_SLAM/Camera"));
-    #ifdef CALSCALE
-    //if(mState==WORKING)//it means initializing successfully
-    {
-        cout<<"creat a new object of CalculateScale"<<endl;
-        mpCurrentCalScale = new CalculateScale;
-    }
-    #endif
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -181,14 +162,13 @@ void Tracking::Run()
 {
     ros::NodeHandle nodeHandler;
     ros::Subscriber sub = nodeHandler.subscribe("/usb_cam/image_raw", 1, &Tracking::GrabImage, this);
-    #ifdef IMUSUB
-        mIMUSub->Run();
-    #endif
+
     ros::spin();
 }
 
 void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 {
+
     cv::Mat im;
 
     // Copy the ros image message to cv::Mat. Convert to grayscale if it is a color image.
@@ -238,9 +218,18 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     else if(mState==INITIALIZING)
     {
         Initialize();
-
     }
-    else//mState == WORKING or LOST
+    else if(mState==LOST)
+    {
+        FirstReInitialization();
+		cout<<"FirstReInitialization();"<<endl;
+    }
+    else if(mState==REINITIALIZING)
+	{
+		ReInitialize();
+		cout<<"ReInitialize();"<<endl;
+	}
+    else
     {
         // System is initialized. Track Frame.
         bool bOK;
@@ -295,8 +284,9 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
-                Reset();
-                return;
+                //Reset();
+                //return;
+				;
             }
         }
 
@@ -334,56 +324,15 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         tf::Transform tfTcw(M,V);
 
         mTfBr.sendTransform(tf::StampedTransform(tfTcw,ros::Time::now(), "ORB_SLAM/World", "ORB_SLAM/Camera"));
-
 //******************edit by liwb **************************************//
-    #ifdef saveRT2txt
-    	outfile<<setprecision(18);
+	outfile<<setprecision(18);
         outfile<<mCurrentFrame.mTimeStamp <<"\n";
-        // outfile<<"Rotation: "<<"\n";
+       // outfile<<"Rotation: "<<"\n";
         outfile<<Rwc.at<float>(0,0)<<" "<<Rwc.at<float>(0,1)<<" "<<Rwc.at<float>(0,2)<<"\n";
         outfile<<Rwc.at<float>(1,0)<<" "<<Rwc.at<float>(1,1)<<" "<<Rwc.at<float>(1,2)<<"\n";
         outfile<<Rwc.at<float>(2,0)<<" "<<Rwc.at<float>(2,1)<<" "<<Rwc.at<float>(2,2)<<"\n";
-        // outfile<<"Translation: "<<"\n";
+       // outfile<<"Translation: "<<"\n";
         outfile<<twc.at<float>(0)<<" "<<twc.at<float>(1)<<" "<<twc.at<float>(2)<<"\n";
-    #endif
-    #ifdef CALSCALE
-        //add data and calculate scale
-        ORB_SLAM::CalculateScale::tCamPose TmpCamPose;
-        //timestamp
-        TmpCamPose.TimeStamp = mCurrentFrame.mTimeStamp;
-        //rotation
-        TmpCamPose.Rotation[0][0]=Rwc.at<float>(0,0);TmpCamPose.Rotation[0][1]=Rwc.at<float>(0,1);TmpCamPose.Rotation[0][2]=Rwc.at<float>(0,2);
-        TmpCamPose.Rotation[1][0]=Rwc.at<float>(1,0);TmpCamPose.Rotation[1][1]=Rwc.at<float>(1,1);TmpCamPose.Rotation[1][2]=Rwc.at<float>(1,2);
-        TmpCamPose.Rotation[2][0]=Rwc.at<float>(2,0);TmpCamPose.Rotation[2][1]=Rwc.at<float>(2,1);TmpCamPose.Rotation[2][2]=Rwc.at<float>(2,2);
-        //tr
-        TmpCamPose.Translation[0]=twc.at<float>(0);
-        TmpCamPose.Translation[1]=twc.at<float>(1);
-        TmpCamPose.Translation[2]=twc.at<float>(2);
-        //
-        //cout<<"enter calculate scale"<<endl;
-        mpCurrentCalScale->mAddCamPose(TmpCamPose);
-        //cout<<"mAddCamPose(TmpCamPose);"<<endl;
-        mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
-        //cout<<"mAlignCamAndIMU"<<endl;
-        mpCurrentCalScale->mIfStartToCalScale();
-        //cout<<"mIfStartToCalScale"<<endl;
-        mpCurrentCalScale->mIfStartToMedian();
-        //cout<<"mIfStartToMedian"<<endl;
-        mpCurrentCalScale->mCalRawScale();
-        //cout<<"mCalRawScale"<<endl;
-        //mpCurrentCalScale->mMedian();
-        //cout<<"mMedian"<<endl;
-
-/*
-		mpCurrentCalScale->mCalFinalScale();
-        //cout<<"mCalFinalScale"<<endl;
-        if(mpCurrentCalScale->mGetFinalScale()>0)
-        {
-            cout<<mpCurrentCalScale->mGetFinalScale()<<endl;
-        }
-*/
-    #endif
-
 //******************edit by liwb **************************************//
     }
 
@@ -1164,6 +1113,207 @@ void Tracking::CheckResetByPublishers()
         }
         r.sleep();
     }
+}
+void Tracking::FirstReInitialization()
+{
+    //We ensure a minimum ORB features to continue, otherwise discard frame
+    if(mCurrentFrame.mvKeys.size()>100)
+    {
+        mInitialFrame = Frame(mCurrentFrame);
+        mLastFrame = Frame(mCurrentFrame);
+        mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
+        for(size_t i=0; i<mCurrentFrame.mvKeysUn.size(); i++)
+            mvbPrevMatched[i]=mCurrentFrame.mvKeysUn[i].pt;
+
+        if(mpInitializer)
+            delete mpInitializer;
+
+        mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
+
+
+        mState = REINITIALIZING;
+    }
+}
+
+void Tracking::ReInitialize()
+{
+    // Check if current frame has enough keypoints, otherwise reset initialization process
+    if(mCurrentFrame.mvKeys.size()<=100)
+    {
+        fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
+        mState = LOST;
+        return;
+    }
+
+    // Find correspondences
+    ORBmatcher matcher(0.9,true);
+    int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
+
+    // Check if there are enough correspondences
+    if(nmatches<100)
+    {
+        mState = LOST;
+        return;
+    }
+
+    cv::Mat Rcw; // Current Camera Rotation
+    cv::Mat tcw; // Current Camera Translation
+    vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
+
+    if(mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
+    {
+        for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
+        {
+            if(mvIniMatches[i]>=0 && !vbTriangulated[i])
+            {
+                mvIniMatches[i]=-1;
+                nmatches--;
+            }
+        }
+
+        CreateInitialMap(Rcw,tcw);
+		cout<<"ReCreateInitialMap(Rcw,tcw);"<<endl;
+    }
+
+}
+
+void Tracking::ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
+{
+    // Set Frame Poses
+    mInitialFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    mCurrentFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    Rcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3));
+    tcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).col(3));
+
+    // Create KeyFrames
+    KeyFrame* pKFini = new KeyFrame(mInitialFrame,mpMap,mpKeyFrameDB);
+    KeyFrame* pKFcur = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
+
+    pKFini->ComputeBoW();
+    pKFcur->ComputeBoW();
+
+    // Insert KFs in the map
+    mpMap->AddKeyFrame(pKFini);
+    mpMap->AddKeyFrame(pKFcur);
+
+    // Create MapPoints and asscoiate to keyframes
+    for(size_t i=0; i<mvIniMatches.size();i++)
+    {
+        if(mvIniMatches[i]<0)
+            continue;
+
+        //Create MapPoint.
+        cv::Mat worldPos(mvIniP3D[i]);
+
+        MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
+
+        pKFini->AddMapPoint(pMP,i);
+        pKFcur->AddMapPoint(pMP,mvIniMatches[i]);
+
+        pMP->AddObservation(pKFini,i);
+        pMP->AddObservation(pKFcur,mvIniMatches[i]);
+
+        pMP->ComputeDistinctiveDescriptors();
+        pMP->UpdateNormalAndDepth();
+
+        //Fill Current Frame structure
+        mCurrentFrame.mvpMapPoints[mvIniMatches[i]] = pMP;
+
+        //Add to Map
+        mpMap->AddMapPoint(pMP);
+
+    }
+
+    // Update Connections
+    pKFini->UpdateConnections();
+    pKFcur->UpdateConnections();
+
+    // Bundle Adjustment
+    ROS_INFO("New Map created with %d points",mpMap->MapPointsInMap());
+
+    Optimizer::GlobalBundleAdjustemnt(mpMap,20);
+
+    // Set median depth to 1
+    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    float invMedianDepth = 1.0f/medianDepth;
+
+    if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
+    {
+        ROS_INFO("Wrong initialization, reseting...");
+        //Reset();
+		//modify according to method Reset()
+		{
+			boost::mutex::scoped_lock lock(mMutexReset);
+			mbPublisherStopped = false;
+			mbReseting = true;
+		}
+
+		// Wait until publishers are stopped
+		ros::Rate r(500);
+		while(1)
+		{
+			{
+				boost::mutex::scoped_lock lock(mMutexReset);
+				if(mbPublisherStopped)
+					break;
+			}
+			r.sleep();
+		}
+
+		// Reset Local Mapping
+		mpLocalMapper->RequestReset();
+		// Reset Loop Closing
+		mpLoopClosing->RequestReset();
+		// Clear BoW Database
+		mpKeyFrameDB->clear();
+		// Clear Map (this erase MapPoints and KeyFrames)
+		//mpMap->clear();
+
+		KeyFrame::nNextId = 0;
+		Frame::nNextId = 0;
+		mState = LOST;
+
+		{
+			boost::mutex::scoped_lock lock(mMutexReset);
+			mbReseting = false;
+		}
+        return;
+    }
+
+    // Scale initial baseline
+    cv::Mat Tc2w = pKFcur->GetPose();
+    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+    pKFcur->SetPose(Tc2w);
+
+    // Scale points
+    vector<MapPoint*> vpAllMapPoints = pKFini->GetMapPointMatches();
+    for(size_t iMP=0; iMP<vpAllMapPoints.size(); iMP++)
+    {
+        if(vpAllMapPoints[iMP])
+        {
+            MapPoint* pMP = vpAllMapPoints[iMP];
+            pMP->SetWorldPos(pMP->GetWorldPos()*invMedianDepth);
+        }
+    }
+
+    mpLocalMapper->InsertKeyFrame(pKFini);
+    mpLocalMapper->InsertKeyFrame(pKFcur);
+
+    mCurrentFrame.mTcw = pKFcur->GetPose().clone();
+    mLastFrame = Frame(mCurrentFrame);
+    mnLastKeyFrameId=mCurrentFrame.mnId;
+    mpLastKeyFrame = pKFcur;
+
+    mvpLocalKeyFrames.push_back(pKFcur);
+    mvpLocalKeyFrames.push_back(pKFini);
+    mvpLocalMapPoints=mpMap->GetAllMapPoints();
+    mpReferenceKF = pKFcur;
+
+    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+    mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
+
+    mState=WORKING;
 }
 
 } //namespace ORB_SLAM

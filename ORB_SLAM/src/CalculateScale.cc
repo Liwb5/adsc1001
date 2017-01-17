@@ -65,8 +65,17 @@ namespace ORB_SLAM
 
 	CalculateScale::~CalculateScale()
 	{
+	#ifdef output_scale_med
 		outfile_scale_med<<999<<endl;
-		outfile_scale_med.close();
+		cout<<"CalculateScale is destroyed"<<endl;
+
+		if(outfile_scale_med.is_open())
+		{
+			cout<<"file closing"<<endl;
+			outfile_scale_med.close();
+			cout<<"file has been closed"<<endl;
+		}
+	#endif
 	}
 
 void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)

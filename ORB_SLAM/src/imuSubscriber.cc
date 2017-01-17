@@ -38,7 +38,7 @@ namespace ORB_SLAM
         outfile_imuData<<1<<" "<<std::fixed<<mIMUData.timeStamp<<" "<<1<<" "<<1<<" "<<1<<" "<<1<<" ";
         outfile_imuData<<mIMUData.Quat.w<<" "<<mIMUData.Quat.x<<" "<<mIMUData.Quat.y<<" "<<mIMUData.Quat.z<<" ";//quaternion
         outfile_imuData<<mIMUData.LinearAccel.x<<" "<<mIMUData.LinearAccel.y<<" "<<mIMUData.LinearAccel.z<<" ";//linear Acceleration
-        outfile_imuData<<1<<" "<<1<<" "<<1<<"\n";
+        outfile_imuData<<1<<" "<<1<<" "<<1<<endl;
     #endif
         //test();//for debug
     }

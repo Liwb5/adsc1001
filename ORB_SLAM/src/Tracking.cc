@@ -153,13 +153,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     tf::Transform tfT;
     tfT.setIdentity();
     mTfBr.sendTransform(tf::StampedTransform(tfT,ros::Time::now(), "/ORB_SLAM/World", "/ORB_SLAM/Camera"));
-    #ifdef CALSCALE
-    //if(mState==WORKING)//it means initializing successfully
-    {
-        cout<<"creat a new object of CalculateScale"<<endl;
-        mpCurrentCalScale = new CalculateScale;
-    }
-    #endif
+
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -303,6 +297,14 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
         {
+		#ifdef CALSCALE
+			if(mpCurrentCalScale != NULL)
+			{
+				delete mpCurrentCalScale;
+				cout<<"delete mpCurrentCalScale successfully"<<endl;
+				
+			}
+		#endif
             if(mpMap->KeyFramesInMap()<=5)
             {
                 Reset();
@@ -357,41 +359,35 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         outfile<<twc.at<float>(0)<<" "<<twc.at<float>(1)<<" "<<twc.at<float>(2)<<"\n";
     #endif
     #ifdef CALSCALE
-        //add data and calculate scale
-        ORB_SLAM::CalculateScale::tCamPose TmpCamPose;
-        //timestamp
-        TmpCamPose.TimeStamp = mCurrentFrame.mTimeStamp;
-        //rotation
-        TmpCamPose.Rotation[0][0]=Rwc.at<float>(0,0);TmpCamPose.Rotation[0][1]=Rwc.at<float>(0,1);TmpCamPose.Rotation[0][2]=Rwc.at<float>(0,2);
-        TmpCamPose.Rotation[1][0]=Rwc.at<float>(1,0);TmpCamPose.Rotation[1][1]=Rwc.at<float>(1,1);TmpCamPose.Rotation[1][2]=Rwc.at<float>(1,2);
-        TmpCamPose.Rotation[2][0]=Rwc.at<float>(2,0);TmpCamPose.Rotation[2][1]=Rwc.at<float>(2,1);TmpCamPose.Rotation[2][2]=Rwc.at<float>(2,2);
-        //tr
-        TmpCamPose.Translation[0]=twc.at<float>(0);
-        TmpCamPose.Translation[1]=twc.at<float>(1);
-        TmpCamPose.Translation[2]=twc.at<float>(2);
-        //
-        //cout<<"enter calculate scale"<<endl;
-        mpCurrentCalScale->mAddCamPose(TmpCamPose);
-        //cout<<"mAddCamPose(TmpCamPose);"<<endl;
-        mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
-        //cout<<"mAlignCamAndIMU"<<endl;
-        mpCurrentCalScale->mIfStartToCalScale();
-        //cout<<"mIfStartToCalScale"<<endl;
-        mpCurrentCalScale->mIfStartToMedian();
-        //cout<<"mIfStartToMedian"<<endl;
-        mpCurrentCalScale->mCalRawScale();
-        //cout<<"mCalRawScale"<<endl;
-        //mpCurrentCalScale->mMedian();
-        //cout<<"mMedian"<<endl;
-
-/*
-		mpCurrentCalScale->mCalFinalScale();
-        //cout<<"mCalFinalScale"<<endl;
-        if(mpCurrentCalScale->mGetFinalScale()>0)
-        {
-            cout<<mpCurrentCalScale->mGetFinalScale()<<endl;
-        }
-*/
+		if(mState == WORKING)
+		{
+			//add data and calculate scale
+			ORB_SLAM::CalculateScale::tCamPose TmpCamPose;
+			//timestamp
+			TmpCamPose.TimeStamp = mCurrentFrame.mTimeStamp;
+			//rotation
+			TmpCamPose.Rotation[0][0]=Rwc.at<float>(0,0);TmpCamPose.Rotation[0][1]=Rwc.at<float>(0,1);TmpCamPose.Rotation[0][2]=Rwc.at<float>(0,2);
+			TmpCamPose.Rotation[1][0]=Rwc.at<float>(1,0);TmpCamPose.Rotation[1][1]=Rwc.at<float>(1,1);TmpCamPose.Rotation[1][2]=Rwc.at<float>(1,2);
+			TmpCamPose.Rotation[2][0]=Rwc.at<float>(2,0);TmpCamPose.Rotation[2][1]=Rwc.at<float>(2,1);TmpCamPose.Rotation[2][2]=Rwc.at<float>(2,2);
+			//tr
+			TmpCamPose.Translation[0]=twc.at<float>(0);
+			TmpCamPose.Translation[1]=twc.at<float>(1);
+			TmpCamPose.Translation[2]=twc.at<float>(2);
+			//
+			//cout<<"enter calculate scale"<<endl;
+			mpCurrentCalScale->mAddCamPose(TmpCamPose);
+			//cout<<"mAddCamPose(TmpCamPose);"<<endl;
+			mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
+			//cout<<"mAlignCamAndIMU"<<endl;
+			mpCurrentCalScale->mIfStartToCalScale();
+			//cout<<"mIfStartToCalScale"<<endl;
+			mpCurrentCalScale->mIfStartToMedian();
+			//cout<<"mIfStartToMedian"<<endl;
+			mpCurrentCalScale->mCalRawScale();
+			//cout<<"mCalRawScale"<<endl;
+			//mpCurrentCalScale->mMedian();
+			//cout<<"mMedian"<<endl;
+		}
     #endif
 
 //******************edit by liwb **************************************//
@@ -456,7 +452,6 @@ void Tracking::Initialize()
                 nmatches--;
             }
         }
-
         CreateInitialMap(Rcw,tcw);
     }
 
@@ -563,6 +558,15 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
 
     mState=WORKING;
+#ifdef CALSCALE
+    //if(mState==WORKING)//it means initializing successfully
+    {
+        cout<<"begin to creat a new object of CalculateScale"<<endl;
+        //cout<<mpCurrentCalScale<<endl;
+        mpCurrentCalScale = new CalculateScale;
+        cout<<"successfully creat a new object of CalculateScale"<<endl;
+    }
+#endif
 }
 
 
@@ -1235,6 +1239,7 @@ void Tracking::ReInitialize()
 
         CreateInitialMap(Rcw,tcw);
 		cout<<"ReCreateInitialMap(Rcw,tcw);"<<endl;
+
     }
 
 }

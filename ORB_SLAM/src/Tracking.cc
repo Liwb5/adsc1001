@@ -242,7 +242,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 	else if(mState==REINITIALIZING)
 	{
 		ReInitialize();
-		cout<<"ReInitialize();"<<endl;
+	//	cout<<"ReInitialize();"<<endl;
 	}
     else//mState == WORKING or LOST
     {
@@ -253,12 +253,21 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         if(mState==WORKING && !RelocalisationRequested())
         {
             if(!mbMotionModel || mpMap->KeyFramesInMap()<4 || mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
+			{
                 bOK = TrackPreviousFrame();
+			//	cout<<"TrackPreviousFrame function was called~~~~~~~~~"<<endl;
+			}
+
             else
             {
                 bOK = TrackWithMotionModel();
+			//	cout<<"TrackWithMotionModel function was called***************"<<endl;
                 if(!bOK)
-                    bOK = TrackPreviousFrame();
+				{
+					bOK = TrackPreviousFrame();
+				//	cout<<"TrackPreviousFrame function was called~~~~~~~~~"<<endl;
+				}
+                    
             }
         }
         else
@@ -297,17 +306,10 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
         {
-		#ifdef CALSCALE
-			if(mpCurrentCalScale != NULL)
-			{
-				delete mpCurrentCalScale;
-				cout<<"delete mpCurrentCalScale successfully"<<endl;
-				
-			}
-		#endif
             if(mpMap->KeyFramesInMap()<=5)
             {
                 Reset();
+				cout<<"keyframe<5 reset~~~~~~~~~~~~~~~~~~~~"<<endl;
                 return;
             }
         }
@@ -359,7 +361,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         outfile<<twc.at<float>(0)<<" "<<twc.at<float>(1)<<" "<<twc.at<float>(2)<<"\n";
     #endif
     #ifdef CALSCALE
-		if(mState == WORKING)
+		//if(mState == WORKING)
 		{
 			//add data and calculate scale
 			ORB_SLAM::CalculateScale::tCamPose TmpCamPose;
@@ -520,7 +522,8 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
         ROS_INFO("Wrong initialization, reseting...");
-        Reset();
+        //Reset();
+		Reset2();
         return;
     }
 
@@ -559,7 +562,13 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 
     mState=WORKING;
 #ifdef CALSCALE
-    //if(mState==WORKING)//it means initializing successfully
+
+	if(mpCurrentCalScale)
+	{
+		delete mpCurrentCalScale;
+		cout<<"delete mpCurrentCalScale successfully"<<endl;
+	}
+   //if(mState==WORKING)//it means initializing successfully
     {
         cout<<"begin to creat a new object of CalculateScale"<<endl;
         //cout<<mpCurrentCalScale<<endl;
@@ -1244,4 +1253,159 @@ void Tracking::ReInitialize()
 
 }
 
+void Tracking::Reset2()
+{
+    {
+        boost::mutex::scoped_lock lock(mMutexReset);
+        mbPublisherStopped = false;
+        mbReseting = true;
+    }
+
+    // Wait until publishers are stopped
+    ros::Rate r(500);
+    while(1)
+    {
+        {
+            boost::mutex::scoped_lock lock(mMutexReset);
+            if(mbPublisherStopped)
+                break;
+        }
+        r.sleep();
+    }
+
+    // Reset Local Mapping
+    //mpLocalMapper->RequestReset();
+    // Reset Loop Closing
+    //mpLoopClosing->RequestReset();
+    // Clear BoW Database
+    //mpKeyFrameDB->clear();
+    // Clear Map (this erase MapPoints and KeyFrames)
+   // mpMap->clear();
+
+   // KeyFrame::nNextId = 0;
+   // Frame::nNextId = 0;
+    mState = LOST;
+
+    {
+        boost::mutex::scoped_lock lock(mMutexReset);
+        mbReseting = false;
+    }
+}
+void Tracking::ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
+{
+    // Set Frame Poses
+    mInitialFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    mCurrentFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    Rcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3));
+    tcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).col(3));
+
+    // Create KeyFrames
+    KeyFrame* pKFini = new KeyFrame(mInitialFrame,mpMap,mpKeyFrameDB);
+    KeyFrame* pKFcur = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
+
+    pKFini->ComputeBoW();
+    pKFcur->ComputeBoW();
+
+    // Insert KFs in the map
+    mpMap->AddKeyFrame(pKFini);
+    mpMap->AddKeyFrame(pKFcur);
+
+    // Create MapPoints and asscoiate to keyframes
+    for(size_t i=0; i<mvIniMatches.size();i++)
+    {
+        if(mvIniMatches[i]<0)
+            continue;
+
+        //Create MapPoint.
+        cv::Mat worldPos(mvIniP3D[i]);
+
+        MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
+
+        pKFini->AddMapPoint(pMP,i);
+        pKFcur->AddMapPoint(pMP,mvIniMatches[i]);
+
+        pMP->AddObservation(pKFini,i);
+        pMP->AddObservation(pKFcur,mvIniMatches[i]);
+
+        pMP->ComputeDistinctiveDescriptors();
+        pMP->UpdateNormalAndDepth();
+
+        //Fill Current Frame structure
+        mCurrentFrame.mvpMapPoints[mvIniMatches[i]] = pMP;
+
+        //Add to Map
+        mpMap->AddMapPoint(pMP);
+
+    }
+
+    // Update Connections
+    pKFini->UpdateConnections();
+    pKFcur->UpdateConnections();
+
+    // Bundle Adjustment
+    ROS_INFO("New Map created with %d points",mpMap->MapPointsInMap());
+
+    Optimizer::GlobalBundleAdjustemnt(mpMap,20);
+
+    // Set median depth to 1
+    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    float invMedianDepth = 1.0f/medianDepth;
+
+    if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
+    {
+        ROS_INFO("Wrong initialization, reseting...");
+        Reset2();
+        return;
+    }
+
+    // Scale initial baseline
+    cv::Mat Tc2w = pKFcur->GetPose();
+    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+    pKFcur->SetPose(Tc2w);
+
+    // Scale points
+    vector<MapPoint*> vpAllMapPoints = pKFini->GetMapPointMatches();
+    for(size_t iMP=0; iMP<vpAllMapPoints.size(); iMP++)
+    {
+        if(vpAllMapPoints[iMP])
+        {
+            MapPoint* pMP = vpAllMapPoints[iMP];
+            pMP->SetWorldPos(pMP->GetWorldPos()*invMedianDepth);
+        }
+    }
+
+    mpLocalMapper->InsertKeyFrame(pKFini);
+    mpLocalMapper->InsertKeyFrame(pKFcur);
+
+    mCurrentFrame.mTcw = pKFcur->GetPose().clone();
+    mLastFrame = Frame(mCurrentFrame);
+    mnLastKeyFrameId=mCurrentFrame.mnId;
+    mpLastKeyFrame = pKFcur;
+
+    mvpLocalKeyFrames.push_back(pKFcur);
+    mvpLocalKeyFrames.push_back(pKFini);
+    mvpLocalMapPoints=mpMap->GetAllMapPoints();
+    mpReferenceKF = pKFcur;
+
+    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+    mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
+
+    mState=WORKING;
+#ifdef CALSCALE
+
+	if(mpCurrentCalScale)
+	{
+		delete mpCurrentCalScale;
+		cout<<"delete mpCurrentCalScale successfully"<<endl;
+	}
+	//if(mState==WORKING)//it means initializing successfully
+    {
+        cout<<"begin to creat a new object of CalculateScale"<<endl;
+        //cout<<mpCurrentCalScale<<endl;
+        mpCurrentCalScale = new CalculateScale;
+        cout<<"successfully creat a new object of CalculateScale"<<endl;
+    }
+#endif
+}
 } //namespace ORB_SLAM

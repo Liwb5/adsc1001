@@ -120,8 +120,9 @@ protected:
     void FirstInitialization();
     void Initialize();
     void CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
-
+	
     void Reset();
+	void Reset2();
 
     bool TrackPreviousFrame();
     bool TrackWithMotionModel();

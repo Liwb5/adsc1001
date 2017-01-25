@@ -1,0 +1,8 @@
+prefix=/home/hmx/ws_catkin/src/imu_image/build/devel
+
+Name: imu_image
+Description: Description of imu_image
+Version: 0.0.0
+Cflags: -I/home/hmx/ws_catkin/src/imu_image/build/devel/include -I/home/hmx/ws_catkin/src/imu_image/include
+Libs: -L/home/hmx/ws_catkin/src/imu_image/build/devel/lib -limu_image
+Requires: message_runtime

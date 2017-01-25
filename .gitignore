@@ -1,6 +1,4 @@
-
 *~
-
 ORB_SLAM/*~
 ORB_SLAM/bin
 ORB_SLAM/build
@@ -22,4 +20,3 @@ imu_image/src/*~
 imu_image/include/imu_image/*~
 imu_image/msg/*~
 imu_image/launch/*~
-

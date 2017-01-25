@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     ofstream outfile("/home/liwb/Documents/output/imu.txt",ofstream::binary);
 
 
+
     imu_image::imuData data;
     //feof: to jude whether the file is completely read
     while(~feof(file) && ros::ok())
@@ -51,6 +52,7 @@ int main(int argc, char **argv)
 	    current_time = ros::Time::now();
 
 	    std::vector<float> v;
+
 	// Build an istream that holds the input string
 	std::istringstream iss(buffer);
 
@@ -86,6 +88,7 @@ int main(int argc, char **argv)
   data.gravity_x = v[11];
   data.gravity_y = v[12];
   data.gravity_z = v[13];
+
   imuData_pub.publish(data);
   ros::spinOnce();
 	loop_rate.sleep();

@@ -329,7 +329,12 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
             if(NeedNewKeyFrame())
 			{
 			//	cout<<"start: create new keyframe"<<endl;
-                CreateNewKeyFrame(mMTransformRotation,mMFinalCamPoseTranslation,mpCurrentCalScale->mfFinalScale);
+				float fFinalScale = mpCurrentCalScale->mGetFinalScale();
+				if(mvCalScale.size() != 0)
+					fFinalScale = fFinalScale/mvCalScale[0].mfFinalScale;
+				else
+					fFinalScale = 1.0;
+                CreateNewKeyFrame(mMTransformRotation,mMFinalCamPoseTranslation,fFinalScale);
 			//	cout<<"end: create new keyframe"<<endl;
 			}
             // We allow points with high innovation (considererd outliers by the Huber Function)
@@ -353,6 +358,8 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 			//
 			mpCurrentCalScale->mlLastLostKeyFrameIndx = (mpMap->mvpKeyFramesForPublish).size()-1;
 			//
+			//push
+			mvCalScale.push_back(CalculateScale(*mpCurrentCalScale));
 			cv::Mat Rwc;
 			cv::Mat twc;
 			if(mpCurrentCalScale->mbTimeToGetFinalScale == false)
@@ -361,6 +368,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 				//final scale
 				mpCurrentCalScale->mCalFinalScale();
 				float fFinalScale = mpCurrentCalScale->mGetFinalScale();
+				fFinalScale = fFinalScale/mvCalScale[0].mfFinalScale;
 				for(int i=mpCurrentCalScale->mlFirstLostKeyFrameIndx;i<=mpCurrentCalScale->mlLastLostKeyFrameIndx;i++)
 				{
 					Rwc = (mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).colRange(0,3).t();
@@ -371,8 +379,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 				cout<<"ST"<<endl;
 			}
 			cout<<"twc: "<<twc<<endl;
-			//push
-			mvCalScale.push_back(CalculateScale(*mpCurrentCalScale));
+			
 			//
 			mnTimesOfLost++;
 			cout<<mnTimesOfLost<<endl;
@@ -392,6 +399,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 			float fFinalScale = mpCurrentCalScale->mfFinalScale;
 			if(fFinalScale>0)
 			{
+				fFinalScale = fFinalScale/mvCalScale[0].mfFinalScale;
 				mMFinalCamPoseTranslation = mMTransformRotation*MTmpFinalCamPoseTranslation*fFinalScale + mMFinalCamPoseTranslation;
 			}
 			cout<<"LOST, scale is "<<fFinalScale<<endl;
@@ -530,9 +538,10 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 			cv::Mat Rwc;
 			cv::Mat twc;
 			long lKeyFrameNum = (mpMap->mvpKeyFramesForPublish).size();
-			//if((mpCurrentCalScale->mvfScaleAfterMedian).size()<mpCurrentCalScale->mnStartToCalFinalScale)
+			if(mvCalScale.size()>=1)
 			{
 				cout<<"Get ";
+				fFinalScale = fFinalScale/mvCalScale[0].mfFinalScale;
 				for(int i=mpCurrentCalScale->mlFirstLostKeyFrameIndx;i<lKeyFrameNum;i++)
 				{
 					Rwc = (mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).colRange(0,3).t();
@@ -543,6 +552,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 				cout<<"scale: "<<fFinalScale<<endl;
 			}
 		}
+		ros::Time current_time2 = ros::Time::now();
 
     #endif
 

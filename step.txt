@@ -1,0 +1,27 @@
+if you want to test whether orbslam can subscribe imu data from ros topic, follow the steps:
+
+1, add #define IMUSUB in main.cc, Tracking.cc and Tracking.h files.
+
+2, roslaunch ExampleGroovyOrNewer.launch
+
+3, rosrun imu_image imu_recieve
+
+
+
+if you want to save Rotation and Translation data in .txt file 
+
+add #define saveRT2txt in Tracking.cc and Tracking.h files.
+
+then the R_and_T.txt file will be saved in /home/liwb/Documents/output/
+
+
+collect data 
+
+roslaunch ../launch/mycamera.launch
+
+roslaunch readImageFromUSB.launch 
+
+rosrun imu_image imu_recieve 
+
+rosbag record -O b1101_1 /imuData /usb_cam/image_raw
+

@@ -1,5 +1,5 @@
 /*
-
+//hmx
 */
 #ifndef CALCULATESCALE_H
 #define CALCULATESCALE_H

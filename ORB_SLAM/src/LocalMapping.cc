@@ -31,8 +31,6 @@ namespace ORB_SLAM
 LocalMapping::LocalMapping(Map *pMap):
     mbResetRequested(false), mpMap(pMap),  mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbAcceptKeyFrames(true)
 {
-	mlKeyFramesSize = 0;
-	mlRecentAddedMapPointsSize = 0;
 }
 
 void LocalMapping::SetLoopCloser(LoopClosing* pLoopCloser)
@@ -53,7 +51,7 @@ void LocalMapping::Run()
     {
         // Check if there are keyframes in the queue
         if(CheckNewKeyFrames())
-        {
+        {            
             // Tracking will see that Local Mapping is busy
             SetAcceptKeyFrames(false);
 
@@ -165,7 +163,7 @@ void LocalMapping::ProcessNewKeyFrame()
                 mlpRecentAddedMapPoints.push_back(pMP);
             }
         }
-    }
+    }  
 
     // Update links in the Covisibility Graph
     mpCurrentKeyFrame->UpdateConnections();
@@ -367,6 +365,15 @@ void LocalMapping::CreateNewMapPoints()
             pMP->UpdateNormalAndDepth();
 
             mpMap->AddMapPoint(pMP);
+			//edited
+			//get mWorldPos
+			MapPoint* pMPForPublish = new MapPoint(x3D,mpCurrentKeyFrame,mpMap);
+			pMPForPublish->mWorldPos = (pMP->mWorldPos).clone();
+			//rotate and shift
+			pMPForPublish->mWorldPos = (pKF2->mMTransformRotation)*(pMPForPublish->mWorldPos) + (pKF2->mMFinalCamPoseTranslation);
+			//push
+			mpMap->AddMapPointForPublish(pMPForPublish);
+			
             mlpRecentAddedMapPoints.push_back(pMP);
         }
     }
@@ -610,27 +617,10 @@ void LocalMapping::ResetIfRequested()
     boost::mutex::scoped_lock lock(mMutexReset);
     if(mbResetRequested)
     {
-        long tmp1 = mlNewKeyFrames.size();
-		while (tmp1 > mlKeyFramesSize)
-        {
-		    mlNewKeyFrames.pop_back();
-            tmp1--;
-		}
-        long tmp2 = mlpRecentAddedMapPoints.size();
-        while (tmp2 > mlRecentAddedMapPointsSize)
-        {
-            mlpRecentAddedMapPoints.pop_back();
-            tmp2--;
-        }
-        //mlNewKeyFrames.clear();
-        //mlpRecentAddedMapPoints.clear();
+        mlNewKeyFrames.clear();
+        mlpRecentAddedMapPoints.clear();
         mbResetRequested=false;
     }
 }
 
-void LocalMapping::setFlagBeforeLost()
-{
-	mlKeyFramesSize = mlNewKeyFrames.size();
-	mlRecentAddedMapPointsSize = mlpRecentAddedMapPoints.size();
-}
 } //namespace ORB_SLAM

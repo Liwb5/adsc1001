@@ -34,10 +34,11 @@
 #include "LoopClosing.h"
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
-
+#include "imuSubscriber.h"
+//#define IMUSUB
 
 #include "Converter.h"
-#include "imuSubscriber.h"
+
 
 using namespace std;
 
@@ -119,12 +120,18 @@ int main(int argc, char **argv)
     ORB_SLAM::MapPublisher MapPub(&World);
 
 //******************edit by liwb **************************************//
+    #ifdef IMUSUB
     //Initialize the imuSubscriber Thread and launch
     ORB_SLAM::imuSubscriber imuSub;
     //boost::thread imuSubscribeThread(&ORB_SLAM::imuSubscriber::Run, &imuSub);
     //Initialize the Tracking Thread and launch
     ORB_SLAM::Tracking Tracker(&Vocabulary, &FramePub, &MapPub, &World, strSettingsFile,&imuSub);
     boost::thread trackingThread(&ORB_SLAM::Tracking::Run,&Tracker);
+    #else
+    //Initialize the Tracking Thread and launch
+    ORB_SLAM::Tracking Tracker(&Vocabulary, &FramePub, &MapPub, &World, strSettingsFile);
+    boost::thread trackingThread(&ORB_SLAM::Tracking::Run,&Tracker);
+    #endif
 //******************edit by liwb **************************************//
 
     Tracker.SetKeyFrameDatabase(&Database);

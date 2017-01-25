@@ -32,6 +32,11 @@ Map::Map()
 void Map::AddKeyFrame(KeyFrame *pKF)
 {
     boost::mutex::scoped_lock lock(mMutexMap);
+	//edited
+	if(mspKeyFrames.find(pKF)==mspKeyFrames.end())//it means pKF is not in this set
+	{
+		mvpKeyFramesForPublish.push_back(pKF);
+	}
     mspKeyFrames.insert(pKF);
     if(pKF->mnId>mnMaxKFid)
         mnMaxKFid=pKF->mnId;
@@ -42,6 +47,12 @@ void Map::AddMapPoint(MapPoint *pMP)
 {
     boost::mutex::scoped_lock lock(mMutexMap);
     mspMapPoints.insert(pMP);
+    mbMapUpdated=true;
+}
+void Map::AddMapPointForPublish(MapPoint *pMPForPublish)
+{
+    boost::mutex::scoped_lock lock(mMutexMap);
+    mspMapPointsForPublish.insert(pMPForPublish);
     mbMapUpdated=true;
 }
 
@@ -77,7 +88,13 @@ vector<MapPoint*> Map::GetAllMapPoints()
     boost::mutex::scoped_lock lock(mMutexMap);
     return vector<MapPoint*>(mspMapPoints.begin(),mspMapPoints.end());
 }
-
+//edited
+vector<MapPoint*> Map::GetAllMapPointsForPublish()
+{
+    boost::mutex::scoped_lock lock(mMutexMap);
+    return vector<MapPoint*>(mspMapPointsForPublish.begin(),mspMapPointsForPublish.end());
+}
+//
 int Map::MapPointsInMap()
 {
     boost::mutex::scoped_lock lock(mMutexMap);

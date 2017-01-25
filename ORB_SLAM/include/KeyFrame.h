@@ -52,6 +52,8 @@ public:
     cv::Mat GetPose();
     cv::Mat GetPoseInverse();
     cv::Mat GetCameraCenter();
+	//edited
+	cv::Mat GetCameraCenterForPublish();
     cv::Mat GetRotation();
     cv::Mat GetTranslation();
 
@@ -179,10 +181,11 @@ public:
     }
 
 
-protected:
+//protected:
 
     // SE3 Pose and camera center
     cv::Mat Tcw;
+	cv::Mat TcwForPublish;
     cv::Mat Ow;
 
     // Original image, undistorted image bounds, and calibration matrix
@@ -198,6 +201,8 @@ protected:
     std::vector<cv::KeyPoint> mvKeysUn;
     cv::Mat mDescriptors;
     std::vector<MapPoint*> mvpMapPoints;
+	cv::Mat mMTransformRotation;
+	cv::Mat mMFinalCamPoseTranslation;
 
     // BoW
     KeyFrameDatabase* mpKeyFrameDB;

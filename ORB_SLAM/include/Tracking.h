@@ -38,16 +38,20 @@
 #include "MapPublisher.h"
 
 #include<tf/transform_broadcaster.h>
+
 //******************edit by liwb **************************************//
 #include <sstream>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
 #include "imuSubscriber.h"
 #include "CalculateScale.h"
+#define saveRT2txt
+#define IMUSUB
 
 using namespace std;
+
 
 //******************edit by liwb **************************************//
 
@@ -66,22 +70,26 @@ class Tracking
 
 public:
 //******************edit by liwb **************************************//
+    #ifdef IMUSUB
     Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath,imuSubscriber* pIMUSub);
 
-    ofstream outfile;//save RT data to txt
-	ofstream imu_outfile;//save imu data to txt
-//	ofstream scale_med_outfile;//save scale_med data to txt
-	
     //subscribe imu data from topic /imuData
     imuSubscriber* mIMUSub;
-    vector<CalculateScale> mvCalScale;//all
+	//
+	int mnTimesOfLost;
+	cv::Mat mMReferenceIMURotation;
+	cv::Mat mMFinalCamPoseTranslation;
+	cv::Mat mMTransformRotation;//Coordinate transform
+	ORB_SLAM::tIMUData mtReferenceIMU;
+	ORB_SLAM::tCamPose mtFinalCamPose;
+	vector<CalculateScale> mvCalScale;//all
 	CalculateScale* mpCurrentCalScale;  //current
 	
-	void ReInitialize();
-    void FirstReInitialization();
-    void ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
-    void Reset2();
+    #else
+    Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath);
+    #endif
 //******************edit by liwb **************************************//
+
     enum eTrackingState{
         SYSTEM_NOT_READY=-1,
         NO_IMAGES_YET=0,
@@ -89,9 +97,14 @@ public:
         INITIALIZING=2,
         WORKING=3,
         LOST=4,
-        REINITIALIZING=5
+		REINITIALIZING=5
     };
+
+    #ifdef saveRT2txt
+    ofstream outfile;
 	
+    #endif
+
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetKeyFrameDatabase(KeyFrameDatabase* pKFDB);
@@ -122,10 +135,14 @@ protected:
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
 
     void FirstInitialization();
+	void FirstReInitialization();
     void Initialize();
+	void ReInitialize();
     void CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
-	
+	void ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
+
     void Reset();
+	void Reset2();
 
     bool TrackPreviousFrame();
     bool TrackWithMotionModel();
@@ -141,8 +158,8 @@ protected:
     void SearchReferencePointsInFrustum();
 
     bool NeedNewKeyFrame();
-    void CreateNewKeyFrame();
-
+   //void CreateNewKeyFrame();
+	void CreateNewKeyFrame(cv::Mat& MTransformRotation,cv::Mat& MFinalCamPoseTranslation,float fFinalScale);
 
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
@@ -209,6 +226,7 @@ protected:
 
     // Transfor broadcaster (for visualization in rviz)
     tf::TransformBroadcaster mTfBr;
+
 };
 
 } //namespace ORB_SLAM

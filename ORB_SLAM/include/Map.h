@@ -42,6 +42,11 @@ public:
 
     void AddKeyFrame(KeyFrame* pKF);
     void AddMapPoint(MapPoint* pMP);
+	//edited
+	void AddMapPointForPublish(MapPoint *pMPForPublish);
+	std::vector<MapPoint*> GetAllMapPointsForPublish();
+	std::vector<KeyFrame*> mvpKeyFramesForPublish;
+	//
     void EraseMapPoint(MapPoint* pMP);
     void EraseKeyFrame(KeyFrame* pKF);
     void SetCurrentCameraPose(cv::Mat Tcw);
@@ -67,6 +72,9 @@ public:
 
 protected:
     std::set<MapPoint*> mspMapPoints;
+	//edited
+	std::set<MapPoint*> mspMapPointsForPublish;
+	
     std::set<KeyFrame*> mspKeyFrames;
 
     std::vector<MapPoint*> mvpReferenceMapPoints;

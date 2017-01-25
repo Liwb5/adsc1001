@@ -50,7 +50,12 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
             mGrid[i][j] = F.mGrid[i][j];
     }
 
-    SetPose(F.mTcw);    
+    SetPose(F.mTcw);
+	//edited
+    TcwForPublish=Tcw.clone();
+//	TcwForPublish.convertTo(TcwForPublish,CV_64F);
+	mMTransformRotation = (cv::Mat_<float>(3,3) << 1,0,0,0,1,0,0,0,1);
+	mMFinalCamPoseTranslation = (cv::Mat_<float>(3,1) << 0,0,0);
 }
 
 void KeyFrame::ComputeBoW()
@@ -86,6 +91,7 @@ cv::Mat KeyFrame::GetPose()
 {
     boost::mutex::scoped_lock lock(mMutexPose);
     return Tcw.clone();
+	//return TcwForPublish.clone();
 }
 
 cv::Mat KeyFrame::GetPoseInverse()
@@ -109,8 +115,15 @@ cv::Mat KeyFrame::GetCameraCenter()
 {
     boost::mutex::scoped_lock lock(mMutexPose);
     return Ow.clone();
+   // return (-TcwForPublish.rowRange(0,3).colRange(0,3).t()*(TcwForPublish.col(3).rowRange(0,3))).clone();
+	
 }
-
+//edited
+cv::Mat KeyFrame::GetCameraCenterForPublish()
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+    return -((TcwForPublish.rowRange(0,3).colRange(0,3).t())*(TcwForPublish.col(3).rowRange(0,3)));
+}
 cv::Mat KeyFrame::GetRotation()
 {
     boost::mutex::scoped_lock lock(mMutexPose);

@@ -2,27 +2,12 @@
 
 */
 #include "CalculateScale.h"
-#include "Tracking.h"
-#include<ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-
-#include<opencv2/opencv.hpp>
-
-#include"ORBmatcher.h"
-#include"FramePublisher.h"
-#include"Converter.h"
-#include"Map.h"
-#include"Initializer.h"
-
-#include"Optimizer.h"
-#include"PnPsolver.h"
-
 #include<iostream>
 #include<fstream>
 #include<algorithm>
-#include<stdlib.h>
+#define saveRT2txt
+
 using namespace std;
-#define output_scale_med  //in order to output scale_med data into a txt file, so that we can analysis in matlab
 
 namespace ORB_SLAM
 {
@@ -39,16 +24,25 @@ namespace ORB_SLAM
 		mlLastAlignedIndx=0;
 		mlImageIndxForDisplacement=0;
 		mfFinalScale=-1;
-	#ifdef output_scale_med
-		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary | ios::app);//record rotation and translation
-	#endif
+		mdScaleSum = 0.0;
+		mlFirstLostKeyFrameIndx = 0;
+		mlLastLostKeyFrameIndx = 0;
+		mnStartToCalFinalScale = 80;//
+		mbTimeToGetFinalScale = false;
+	//	imu_outfile.open("/home/hmx/Desktop/imu.txt",std::ios::binary);
+	//	scale_after_median_outfile.open("/home/hmx/Desktop/scale_med.txt",std::ios::binary);
+	//	if (!scale_after_median_outfile) {
+	//		cerr << "can't open scale_med file" << endl;
+	//	}
 	}
 
 	CalculateScale::CalculateScale(const CalculateScale &CalScale) //copy all the data
 :mnImageStep(CalScale.mnImageStep),mnImageWindowForDisplacement(CalScale.mnImageWindowForDisplacement),
  mnWindowForMedian(CalScale.mnWindowForMedian),mbStartToMedian(CalScale.mbStartToMedian),
  mbStartToCalScale(CalScale.mbStartToCalScale),mlImageNum(CalScale.mlImageNum),mlLastAlignedIndx(CalScale.mlLastAlignedIndx),
- mlImageIndxForDisplacement(CalScale.mlImageIndxForDisplacement),mfFinalScale(CalScale.mfFinalScale)
+ mlImageIndxForDisplacement(CalScale.mlImageIndxForDisplacement),mfFinalScale(CalScale.mfFinalScale),
+ mlFirstLostKeyFrameIndx(CalScale.mlFirstLostKeyFrameIndx),mlLastLostKeyFrameIndx(CalScale.mlLastLostKeyFrameIndx),
+ mnStartToCalFinalScale(CalScale.mnStartToCalFinalScale),mbTimeToGetFinalScale(CalScale.mbTimeToGetFinalScale)
 {
 	//copy array data
 	mfRawScaleInWindow=new float[mnWindowForMedian];
@@ -57,26 +51,10 @@ namespace ORB_SLAM
 		mfRawScaleInWindow[i]=CalScale.mfRawScaleInWindow[i];
 	}
 	//copy vector data, to do
+	//mvfScaleAfterMedian
+	mvfScaleAfterMedian = CalScale.mvfScaleAfterMedian;
 	//...
-	#ifdef output_scale_med
-		outfile_scale_med.open("/home/liwb/Documents/output/scale_med.txt",ios::binary | ios::app);//record rotation and translation
-	#endif
 }
-
-	CalculateScale::~CalculateScale()
-	{
-	#ifdef output_scale_med
-		outfile_scale_med<<999<<endl;
-		cout<<"CalculateScale is destroyed"<<endl;
-
-		if(outfile_scale_med.is_open())
-		{
-			cout<<"file closing"<<endl;
-			outfile_scale_med.close();
-			cout<<"file has been closed"<<endl;
-		}
-	#endif
-	}
 
 void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
 {
@@ -85,10 +63,10 @@ void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
 	q[2]=-q[2];
 	q[3]=-q[3];
 	//get acc value temporarily
-	float v[3];
+	double v[3];
 	v[0]=acc[0];v[1]=acc[1];v[2]=acc[2];
 	//to rotation
-	float rot[3][3];
+	double rot[3][3];
 	rot[0][0]=q[0]*q[0]+q[1]*q[1]-q[2]*q[2]-q[3]*q[3];
 	rot[0][1]=2*(q[1]*q[2]+q[0]*q[3]);
 	rot[0][2]=2*(q[1]*q[3]-q[0]*q[2]);
@@ -102,24 +80,28 @@ void CalculateScale::mRotateVectorByQuaternion(float* q,float* acc)
 	acc[0]=rot[0][0]*v[0]+rot[0][1]*v[1]+rot[0][2]*v[2];
 	acc[1]=rot[1][0]*v[0]+rot[1][1]*v[1]+rot[1][2]*v[2];
 	acc[2]=rot[2][0]*v[0]+rot[2][1]*v[1]+rot[2][2]*v[2];
-
+	//inverse q
 	q[1]=-q[1];
 	q[2]=-q[2];
 	q[3]=-q[3];
 }
-void CalculateScale::mQuatToDcm(float* q, float rot[][3])
+void CalculateScale::mQuatToDcm(double* q, double rot[][3])
 {
-	float sum = q[1]*q[1] + q[2]*q[2] + q[3]*q[3] + q[0]*q[0];
+	double len_q=sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3]);
+	q[0]=q[0]/len_q;
+	q[1]=q[1]/len_q;
+	q[2]=q[2]/len_q;
+	q[3]=q[3]/len_q;
 	//to rotation
-	rot[0][0]=(1-2*q[2]*q[2]-2*q[3]*q[3])/sum;
-	rot[0][1]=(2*(q[1]*q[2]+q[0]*q[3]))/sum;
-	rot[0][2]=(2*(q[1]*q[3]-q[0]*q[2]))/sum;
-	rot[1][0]=(2*(q[1]*q[2]-q[0]*q[3]))/sum;
-	rot[1][1]=(1-2*q[1]*q[1]-2*q[3]*q[3])/sum;
-	rot[1][2]=(2*(q[2]*q[3]+q[0]*q[1]))/sum;
-	rot[2][0]=(2*(q[1]*q[3]+q[0]*q[2]))/sum;
-	rot[2][1]=(2*(q[2]*q[3]-q[0]*q[1]))/sum;
-	rot[2][2]=(1-2*q[1]*q[1]-2*q[2]*q[2])/sum;
+	rot[0][0]=q[0]*q[0]+q[1]*q[1]-q[2]*q[2]-q[3]*q[3];
+	rot[0][1]=2*(q[1]*q[2]+q[0]*q[3]);
+	rot[0][2]=2*(q[1]*q[3]-q[0]*q[2]);
+	rot[1][0]=2*(q[1]*q[2]-q[0]*q[3]);
+	rot[1][1]=q[0]*q[0]-q[1]*q[1]+q[2]*q[2]-q[3]*q[3];
+	rot[1][2]=2*(q[2]*q[3]+q[0]*q[1]);
+	rot[2][0]=2*(q[1]*q[3]+q[0]*q[2]);
+	rot[2][1]=2*(q[2]*q[3]-q[0]*q[1]);
+	rot[2][2]=q[0]*q[0]-q[1]*q[1]-q[2]*q[2]+q[3]*q[3];
 }
 void CalculateScale::mAddCamPose(tCamPose& pCamPose)
 {
@@ -142,6 +124,14 @@ void CalculateScale::mAddIMUData(imuSubscriber* pIMUSub,long AlignedIndx)
 		pIMUData.Quat[1] = (pIMUSub->mvIMUData[mlLastAlignedIndx+i]).Quat.x;
 		pIMUData.Quat[2] = (pIMUSub->mvIMUData[mlLastAlignedIndx+i]).Quat.y;
 		pIMUData.Quat[3] = (pIMUSub->mvIMUData[mlLastAlignedIndx+i]).Quat.z;
+		//save
+		#ifdef saveRT2txt
+	//	imu_outfile<<1<<" "<<setprecision(18)<<pIMUData.TimeStamp<<" "<<1<<" ";
+	//	imu_outfile<<1<<" "<<1<<" "<<1<<" ";
+	//	imu_outfile<<pIMUData.Quat[0]<<" "<<pIMUData.Quat[1]<<" "<<pIMUData.Quat[2]<<" "<<pIMUData.Quat[3]<<" ";
+	//	imu_outfile<<pIMUData.Acc[0]<<" "<<pIMUData.Acc[1]<<" "<<pIMUData.Acc[2]<<'\n';
+		#endif
+		
 		//the acceleration should refer to world
 		mRotateVectorByQuaternion(pIMUData.Quat,pIMUData.Acc);
 		//push
@@ -166,9 +156,6 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 	long MidIndx;
 	long LeftIndx=mlLastAlignedIndx+1;
 	long RightIndx=MaxIndx;
-
-	//cout<<RightIndx-LeftIndx+1<<"  ";
-
 	while(RightIndx - LeftIndx >=2)
 	{
 		MidIndx=LeftIndx+(RightIndx-LeftIndx)/2; //avoid expression: TmpIndx=(RightIndx+LeftIndx)/2
@@ -183,28 +170,18 @@ void CalculateScale::mAlignCamAndIMU(imuSubscriber* pIMUSub)
 		}
 	}
 	//RightIndx-LeftIndx is 1 or 0;
-	if(RightIndx-LeftIndx==1)
+	if((RightIndx-LeftIndx)==1)
 	{
 		double IMUTimeStampRight= (pIMUSub->mvIMUData[RightIndx]).timeStamp;
 		double IMUTimeStampLeft = (pIMUSub->mvIMUData[LeftIndx]).timeStamp;
-		AlignedIndx = (abs(IMUTimeStampRight-CamTimeStamp)<abs(IMUTimeStampLeft-CamTimeStamp))?RightIndx:LeftIndx;
+		AlignedIndx = ((abs(IMUTimeStampRight-CamTimeStamp)<abs(IMUTimeStampLeft-CamTimeStamp))?RightIndx:LeftIndx);
 	}
 	else //if(RightIndx-LeftIndx==0)
 	{
 		AlignedIndx = RightIndx;
 	}
-/*
-	double tmp = (pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp;
-	cout<< tmp;
-	if(abs(tmp) - 0.01 > 0)
-	{
-		cout<<"bigger than 0.01"<<endl;
-	}
-	else
-	{
-		cout<<endl;
-	}
-*/
+	//AlignedIndx = MaxIndx;
+	//cout<<(pIMUSub->mvIMUData[AlignedIndx]).timeStamp - CamTimeStamp <<endl;
 	if(mlImageNum==1)
 		mlLastAlignedIndx=AlignedIndx-1;
 	//
@@ -251,19 +228,19 @@ void CalculateScale::mCalRawScale()
 	long ImageIndx2=ImageIndx1+mnImageWindowForDisplacement;
 	long ImageIndx3=ImageIndx2+mnImageWindowForDisplacement;
 	//IMU indx
-	long IMUIndx0=mvlAlignedIndx[ImageIndx0];
-	long IMUIndx1=mvlAlignedIndx[ImageIndx1];
-	long IMUIndx2=mvlAlignedIndx[ImageIndx2];
-	long IMUIndx3=mvlAlignedIndx[ImageIndx3];
+	long IMUIndx0=mvlAlignedIndx[ImageIndx0];//cout<<"IMUIndx0:"<<IMUIndx0<<endl;
+	long IMUIndx1=mvlAlignedIndx[ImageIndx1];//cout<<"IMUIndx1:"<<IMUIndx1<<endl;
+	long IMUIndx2=mvlAlignedIndx[ImageIndx2];//cout<<"IMUIndx2:"<<IMUIndx2<<endl;
+	long IMUIndx3=mvlAlignedIndx[ImageIndx3];//cout<<"IMUIndx3:"<<IMUIndx3<<endl;
 	//imu timestamp
-	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;//cout<<"233"<<mvpCamPose[ImageIndx0].TimeStamp-IMUTimeStamp0<<endl;
-	double IMUTimeStamp1=(mvpIMU[IMUIndx1]).TimeStamp;
-	double IMUTimeStamp2=(mvpIMU[IMUIndx2]).TimeStamp;
-	double IMUTimeStamp3=(mvpIMU[IMUIndx3]).TimeStamp;
+	double IMUTimeStamp0=(mvpIMU[IMUIndx0]).TimeStamp;//cout<<"delta_stamp0: "<<mvpCamPose[ImageIndx0].TimeStamp-IMUTimeStamp0<<endl;
+	double IMUTimeStamp1=(mvpIMU[IMUIndx1]).TimeStamp;//cout<<"delta_stamp1: "<<mvpCamPose[ImageIndx1].TimeStamp-IMUTimeStamp1<<endl;
+	double IMUTimeStamp2=(mvpIMU[IMUIndx2]).TimeStamp;//cout<<"delta_stamp2: "<<mvpCamPose[ImageIndx2].TimeStamp-IMUTimeStamp2<<endl;
+	double IMUTimeStamp3=(mvpIMU[IMUIndx3]).TimeStamp;//cout<<"delta_stamp3: "<<mvpCamPose[ImageIndx3].TimeStamp-IMUTimeStamp3<<endl;
 	//time
-	float t1 = IMUTimeStamp1 - IMUTimeStamp0;
-	float t2 = IMUTimeStamp2 - IMUTimeStamp1;
-	float t3 = IMUTimeStamp3 - IMUTimeStamp2;
+	float t1 = IMUTimeStamp1 - IMUTimeStamp0;//cout<<"t1:"<<t1<<endl;
+	float t2 = IMUTimeStamp2 - IMUTimeStamp1;//cout<<"t2:"<<t2<<endl;
+	float t3 = IMUTimeStamp3 - IMUTimeStamp2;//cout<<"t3:"<<t3<<endl;
 	//s1
 	double s1[3]={0.0,0.0,0.0};//
 	int n=IMUIndx1-IMUIndx0;
@@ -276,9 +253,9 @@ void CalculateScale::mCalRawScale()
 	for(int i=1;i<=n;i++)
 	{
 		t=(mvpIMU[IMUIndx1-i+1]).TimeStamp-(mvpIMU[IMUIndx1-i]).TimeStamp;
-		a[0]=(mvpIMU[IMUIndx1-i+1]).Acc[0];
-		a[1]=(mvpIMU[IMUIndx1-i+1]).Acc[1];
-		a[2]=(mvpIMU[IMUIndx1-i+1]).Acc[2];
+		a[0]=(mvpIMU[IMUIndx1-i+1]).Acc[0];//cout<<"a[0]"<<a[0]<<endl;
+		a[1]=(mvpIMU[IMUIndx1-i+1]).Acc[1];//cout<<"a[1]"<<a[1]<<endl;
+		a[2]=(mvpIMU[IMUIndx1-i+1]).Acc[2];//cout<<"a[2]"<<a[2]<<endl<<endl;
 
 		s[0]=s[0]+v[0]*t+0.5*a[0]*t*t;
 		s[1]=s[1]+v[1]*t+0.5*a[1]*t*t;
@@ -321,7 +298,7 @@ void CalculateScale::mCalRawScale()
 	s2[0]=s[0];
 	s2[1]=s[1];
 	s2[2]=s[2];
-	s2_bias=s2_bias;
+	//s2_bias=s2_bias;
 	//delta1_s
 	double delta1_s[3];
 	delta1_s[0]=s2[0]-s1[0]*t2/t1;
@@ -329,7 +306,7 @@ void CalculateScale::mCalRawScale()
 	delta1_s[2]=s2[2]-s1[2]*t2/t1;
 
 	//s2
-	//double s2[3]={0.0,0.0,0.0};//
+	//float s2[3]={0.0,0.0,0.0};//
 	s2[0]=0.0;s2[1]=0.0;s2[2]=0.0;
 	n=IMUIndx2-IMUIndx1;
 	time_sum=0.0;
@@ -386,7 +363,7 @@ void CalculateScale::mCalRawScale()
 	s3[0]=s[0];
 	s3[1]=s[1];
 	s3[2]=s[2];
-	s3_bias=s3_bias;
+	//s3_bias=s3_bias;
 	//
 	double delta2_s[3];
 	delta2_s[0]=s3[0]-s2[0]*t3/t2;
@@ -400,9 +377,9 @@ void CalculateScale::mCalRawScale()
 	{
 		;
 	}
-	delta_s[0]=delta2_s[0]-delta1_s[0]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
-	delta_s[1]=delta2_s[1]-delta1_s[1]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
-	delta_s[2]=delta2_s[2]-delta1_s[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
+	delta_s[0]=delta2_s[0]-delta1_s[0]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_s[0]"<<delta_s[0]<<endl;
+	delta_s[1]=delta2_s[1]-delta1_s[1]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_s[1]"<<delta_s[1]<<endl;
+	delta_s[2]=delta2_s[2]-delta1_s[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_s[2]"<<delta_s[2]<<endl;
 
 	//orbslam translation
 	double tr1[3];
@@ -431,9 +408,9 @@ void CalculateScale::mCalRawScale()
 	delta2_tr[1]=tr3[1]-tr2[1]*t3/t2;
 	delta2_tr[2]=tr3[2]-tr2[2]*t3/t2;
 	//delta_tr
-	delta_tr[0]=delta2_tr[0]-delta1_tr[0]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
-	delta_tr[1]=delta2_tr[1]-delta1_tr[1]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
-	delta_tr[2]=delta2_tr[2]-delta1_tr[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);
+	delta_tr[0]=delta2_tr[0]-delta1_tr[0]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_tr[0]"<<delta_tr[0]<<endl;
+	delta_tr[1]=delta2_tr[1]-delta1_tr[1]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_tr[1]"<<delta_tr[1]<<endl;
+	delta_tr[2]=delta2_tr[2]-delta1_tr[2]*(s3_bias-s2_bias2*t3/t2)/(s2_bias-s1_bias*t2/t1);//cout<<"delta_tr[2]"<<delta_tr[2]<<endl;
 
 	//calculate scale
 	double delta_s_len=sqrt(delta_s[0]*delta_s[0]+delta_s[1]*delta_s[1]+delta_s[2]*delta_s[2]);
@@ -444,10 +421,16 @@ void CalculateScale::mCalRawScale()
 		;
 	}
 	//
-	double fRawScale=delta_s_len/delta_tr_len;
+	float fRawScale=delta_s_len/delta_tr_len;
 	//push
 	mvfScale.push_back(fRawScale);
+	//
 	mMedian();
+	//
+	if(mvfScaleAfterMedian.size()==mnStartToCalFinalScale)
+	{
+		mbTimeToGetFinalScale = true;
+	}
 	//fresh variables for next call
     mlImageIndxForDisplacement=mlImageIndxForDisplacement+mnImageStep;
 }
@@ -455,7 +438,7 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 {
 	if(!mbStartToMedian)
 		return;
-
+	
 	float scale_tmp=mvfScale[mvfScale.size()-1];
 /*
 	int right_position=-1;
@@ -498,25 +481,24 @@ void CalculateScale::mMedian() //avoid sorting, as mfRawScaleInWindow is an orde
 	sort(TmpRawScaleInWindow , TmpRawScaleInWindow + mnWindowForMedian);
 	//median
 	float scale_med = TmpRawScaleInWindow[mnWindowForMedian/2];
+	//save
+	#ifdef saveRT2txt
+	//	scale_after_median_outfile<<scale_med<<endl;
+	//	cout<<"scale_med"<<scale_med<<endl;
+	#endif
 	//push
 	mvfScaleAfterMedian.push_back(scale_med);
-
-	#ifdef output_scale_med
-		outfile_scale_med<<scale_med<<endl;
-		//cout<<tmp<<endl;
-	#endif
-
+	//sum
+	mdScaleSum = mdScaleSum + scale_med;
+	
 }
 void CalculateScale::mCalFinalScale()
 {
 	//mean
-	double dScaleSum=0.0;
-	long lSizeOfScaleVector = mvfScaleAfterMedian.size();
-	for(long i=0;i<lSizeOfScaleVector;i++)
+	if(mvfScaleAfterMedian.size()>=1)
 	{
-		dScaleSum+=mvfScaleAfterMedian[i];
+		mfFinalScale=mdScaleSum/mvfScaleAfterMedian.size();
 	}
-	mfFinalScale=dScaleSum/lSizeOfScaleVector;
 	//median
 	//any other to do
 }

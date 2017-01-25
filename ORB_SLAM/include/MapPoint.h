@@ -97,7 +97,7 @@ public:
     long unsigned int mnCorrectedByKF;
     long unsigned int mnCorrectedReference;
 
-protected:    
+//protected:    
 
      // Position in absolute coordinates
      cv::Mat mWorldPos;

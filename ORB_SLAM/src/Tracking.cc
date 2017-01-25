@@ -55,12 +55,10 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 {
 
 //******************edit by liwb **************************************//
-#ifdef saveRT2txt
-    outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//record rotation and translation
-#endif
-	imu_outfile.open("/home/liwb/Documents/output/imu2.txt",ios::binary);
-	pIMUSub->outfile_imuData = &imu_outfile;
+    #ifdef saveRT2txt
+    outfile.open("/home/hmx/Desktop/R_and_T.txt",ios::binary);//记录rotation and translation
 
+	#endif
 //******************edit by liwb **************************************//
     // Load camera parameters from settings file
 
@@ -76,7 +74,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     K.at<float>(0,2) = cx;
     K.at<float>(1,2) = cy;
     K.copyTo(mK);
-
+    
     cv::Mat DistCoef(4,1,CV_32F);
     DistCoef.at<float>(0) = fSettings["Camera.k1"];
     DistCoef.at<float>(1) = fSettings["Camera.k2"];
@@ -155,7 +153,48 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     tf::Transform tfT;
     tfT.setIdentity();
     mTfBr.sendTransform(tf::StampedTransform(tfT,ros::Time::now(), "/ORB_SLAM/World", "/ORB_SLAM/Camera"));
-
+    #ifdef CALSCALE
+    {
+        cout<<"new a class"<<endl;
+        mpCurrentCalScale = new CalculateScale;
+		//IMU
+		mtReferenceIMU.Quat[0] = 1;mtReferenceIMU.Quat[1] = 0;
+		mtReferenceIMU.Quat[2] = 0;mtReferenceIMU.Quat[3] = 0;
+		mtReferenceIMU.Acc[0]=0;mtReferenceIMU.Acc[1]=0;mtReferenceIMU.Acc[2]=0;
+		//Camera
+		mtFinalCamPose.Rotation[0][0]=1;mtFinalCamPose.Rotation[0][1]=1;mtFinalCamPose.Rotation[0][2]=1;
+		mtFinalCamPose.Rotation[1][0]=1;mtFinalCamPose.Rotation[1][1]=1;mtFinalCamPose.Rotation[1][2]=1;
+		mtFinalCamPose.Rotation[2][0]=1;mtFinalCamPose.Rotation[2][1]=1;mtFinalCamPose.Rotation[2][2]=1;
+		mtFinalCamPose.Translation[0]=0;mtFinalCamPose.Translation[1]=0;mtFinalCamPose.Translation[2]=0;
+		//coordinate transform matrix
+		mMTransformRotation = (cv::Mat_<float>(3,3) << 1,0,0,0,1,0,0,0,1);
+	//	mMTransformRotation = (cv::Mat_<double>(3,3) << 
+						//	   -0.6854,    0.6449,    0.3381,
+						//	   -0.0641,   -0.5160,    0.8542,
+						//	   0.7253,    0.5638,    0.3950);
+						//	   -0.2310,    0.9692,   -0.0859,
+						//	   0.3244,    0.1600,    0.9323,
+						//	   0.9173,    0.1875,   -0.3514);
+		//0.988138198852539062, -0.0724270641803741455, 0.00659546256065368652,
+		//0.0699449926614761353, 0.921812534332275391, -0.356476902961730957,
+		//0.0199217908084392548, 0.355980873107910156, 0.924438714981079102);
+	//	-0.6294,    0.7079,    0.0206,
+	//	-0.0237,   -0.4299,    0.9026,
+	//	0.7767,    0.5605,    0.2873);
+	//0.972
+	//	-0.6294,    0.7079,    0.2500,
+	//	-0.0237,   -0.4299,    0.9026,
+	//	0.7700,    0.5605,    0.2873);
+	//0.966
+	//	-0.16283435, -0.14293583, 0.96447641,
+	//	0.16032422, 0.96059901, 0.16942905,
+	//	-0.96173877, 0.18433501, -0.13505368);
+		//times of lost
+		mnTimesOfLost = 0;
+		//Final camera tr
+		mMFinalCamPoseTranslation = (cv::Mat_<float>(3,1) << 0,0,0);
+	}
+    #endif
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -185,6 +224,7 @@ void Tracking::Run()
 
 void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 {
+
     cv::Mat im;
 
     // Copy the ros image message to cv::Mat. Convert to grayscale if it is a color image.
@@ -227,6 +267,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
     mLastProcessedState=mState;
 
+	//cout<<"mState: "<<mState<<endl;
     if(mState==NOT_INITIALIZED)
     {
         FirstInitialization();
@@ -234,19 +275,27 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     else if(mState==INITIALIZING)
     {
         Initialize();
-
     }
 	else if(mState == LOST)
 	{
 		FirstReInitialization();
-		cout<<"FirstReInitialization();"<<endl;
+		//cout<<"FirstReInitialization();"<<endl;
 	}
-	else if(mState==REINITIALIZING)
+	else if(mState == REINITIALIZING)
 	{
 		ReInitialize();
-	//	cout<<"ReInitialize();"<<endl;
+		//cout<<"ReInitialize();"<<endl;
+		if(mState == WORKING)
+		{
+			cout<<"new a CalScale class"<<endl;
+			mpCurrentCalScale = new CalculateScale;
+			if(mvCalScale.size()>=1)
+			{
+				mpCurrentCalScale->mlFirstLostKeyFrameIndx = mvCalScale[mvCalScale.size()-1].mlLastLostKeyFrameIndx + 1;
+			}
+		}
 	}
-    else//mState == WORKING or LOST
+    else
     {
         // System is initialized. Track Frame.
         bool bOK;
@@ -255,21 +304,12 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         if(mState==WORKING && !RelocalisationRequested())
         {
             if(!mbMotionModel || mpMap->KeyFramesInMap()<4 || mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
-			{
                 bOK = TrackPreviousFrame();
-			//	cout<<"TrackPreviousFrame function was called~~~~~~~~~"<<endl;
-			}
-
             else
             {
                 bOK = TrackWithMotionModel();
-			//	cout<<"TrackWithMotionModel function was called***************"<<endl;
                 if(!bOK)
-				{
-					bOK = TrackPreviousFrame();
-				//	cout<<"TrackPreviousFrame function was called~~~~~~~~~"<<endl;
-				}
-
+                    bOK = TrackPreviousFrame();
             }
         }
         else
@@ -287,8 +327,11 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
             mpMapPublisher->SetCurrentCameraPose(mCurrentFrame.mTcw);
 
             if(NeedNewKeyFrame())
-                CreateNewKeyFrame();
-
+			{
+			//	cout<<"start: create new keyframe"<<endl;
+                CreateNewKeyFrame(mMTransformRotation,mMFinalCamPoseTranslation,mpCurrentCalScale->mfFinalScale);
+			//	cout<<"end: create new keyframe"<<endl;
+			}
             // We allow points with high innovation (considererd outliers by the Huber Function)
             // pass to the new keyframe, so that bundle adjustment will finally decide
             // if they are outliers or not. We don't want next frame to estimate its position
@@ -305,13 +348,65 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         else
             mState=LOST;
 
+		if(mState==LOST)
+		{
+			//
+			mpCurrentCalScale->mlLastLostKeyFrameIndx = (mpMap->mvpKeyFramesForPublish).size()-1;
+			//
+			cv::Mat Rwc;
+			cv::Mat twc;
+			if(mpCurrentCalScale->mbTimeToGetFinalScale == false)
+			{
+				cout<<"LO";
+				//final scale
+				mpCurrentCalScale->mCalFinalScale();
+				float fFinalScale = mpCurrentCalScale->mGetFinalScale();
+				for(int i=mpCurrentCalScale->mlFirstLostKeyFrameIndx;i<=mpCurrentCalScale->mlLastLostKeyFrameIndx;i++)
+				{
+					Rwc = (mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).colRange(0,3).t();
+					twc = -Rwc*(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3);
+					twc = (twc-mMFinalCamPoseTranslation)*fFinalScale + mMFinalCamPoseTranslation;
+					(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3) = -(Rwc.t())*twc;
+				}
+				cout<<"ST"<<endl;
+			}
+			cout<<"twc: "<<twc<<endl;
+			//push
+			mvCalScale.push_back(CalculateScale(*mpCurrentCalScale));
+			//
+			mnTimesOfLost++;
+			cout<<mnTimesOfLost<<endl;
+			if(mnTimesOfLost==1)
+			{
+				mtReferenceIMU = mpCurrentCalScale->mvpIMU[mpCurrentCalScale->mvlAlignedIndx[4]];
+				double fTmpIMURot[3][3];
+				double fTmpIMUQuat[4]={mtReferenceIMU.Quat[0],mtReferenceIMU.Quat[1],mtReferenceIMU.Quat[2],mtReferenceIMU.Quat[3]};
+				mpCurrentCalScale->mQuatToDcm(fTmpIMUQuat,fTmpIMURot);
+				mMReferenceIMURotation = (cv::Mat_<double>(3,3) << fTmpIMURot[0][0],fTmpIMURot[0][1],fTmpIMURot[0][2],
+										  fTmpIMURot[1][0],fTmpIMURot[1][1],fTmpIMURot[1][2],
+										  fTmpIMURot[2][0],fTmpIMURot[2][1],fTmpIMURot[2][2]);
+			}
+			mtFinalCamPose = mpCurrentCalScale->mvpCamPose[mpCurrentCalScale->mvpCamPose.size()-1];
+			//fresh variable: mMFinalCamPoseTranslation
+			cv::Mat MTmpFinalCamPoseTranslation = (cv::Mat_<float>(3,1) << mtFinalCamPose.Translation[0],mtFinalCamPose.Translation[1],mtFinalCamPose.Translation[2]);
+			float fFinalScale = mpCurrentCalScale->mfFinalScale;
+			if(fFinalScale>0)
+			{
+				mMFinalCamPoseTranslation = mMTransformRotation*MTmpFinalCamPoseTranslation*fFinalScale + mMFinalCamPoseTranslation;
+			}
+			cout<<"LOST, scale is "<<fFinalScale<<endl;
+			cout<<mMTransformRotation<<endl;
+			cout<<MTmpFinalCamPoseTranslation<<endl;
+			cout<<mMFinalCamPoseTranslation<<endl;
+			return;
+		}
+
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
         {
             if(mpMap->KeyFramesInMap()<=5)
             {
                 Reset();
-				cout<<"keyframe<5 reset~~~~~~~~~~~~~~~~~~~~"<<endl;
                 return;
             }
         }
@@ -340,8 +435,44 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
     if(!mCurrentFrame.mTcw.empty())
     {
-        cv::Mat Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
-        cv::Mat twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
+		cv::Mat Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
+		cv::Mat twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
+		if(mnTimesOfLost>=1)
+		{
+			if(mpCurrentCalScale->mlImageNum==2)
+			{
+				ORB_SLAM::tIMUData tTmpIMUData = mpCurrentCalScale->mvpIMU[mpCurrentCalScale->mvlAlignedIndx[0]];
+				double fTmpIMURotation0[3][3];
+				double fTmpIMUQuat0[4]={tTmpIMUData.Quat[0],tTmpIMUData.Quat[1],tTmpIMUData.Quat[2],tTmpIMUData.Quat[3]};
+				double t;
+				t=fTmpIMUQuat0[0]*fTmpIMUQuat0[0]+fTmpIMUQuat0[1]*fTmpIMUQuat0[1]+fTmpIMUQuat0[2]*fTmpIMUQuat0[2]+fTmpIMUQuat0[3]*fTmpIMUQuat0[3];
+				cout<<"t: "<<t<<endl;
+				mpCurrentCalScale->mQuatToDcm(fTmpIMUQuat0,fTmpIMURotation0);
+				cv::Mat MTmpIMURotation = (cv::Mat_<double>(3,3) << fTmpIMURotation0[0][0],fTmpIMURotation0[0][1],fTmpIMURotation0[0][2],
+											fTmpIMURotation0[1][0],fTmpIMURotation0[1][1],fTmpIMURotation0[1][2],
+											fTmpIMURotation0[2][0],fTmpIMURotation0[2][1],fTmpIMURotation0[2][2]);
+				mMTransformRotation = (MTmpIMURotation)*(mMReferenceIMURotation.t());
+				mMTransformRotation.convertTo(mMTransformRotation,CV_32F);
+				mMTransformRotation = mMTransformRotation.t();
+
+				cout<<mMTransformRotation<<endl;
+				cout<<"mMTransformRotation det: "<<determinant(mMTransformRotation)<<endl;
+			}
+		}
+		cv::Mat Rwc1 = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3);
+		cv::Mat twc1 = mCurrentFrame.mTcw.rowRange(0,3).col(3);
+		
+		Rwc=mMTransformRotation*Rwc;
+		twc=mMTransformRotation*twc+mMFinalCamPoseTranslation;
+		
+		//
+	//	mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3)=Rwc.t();
+	//	mCurrentFrame.mTcw.rowRange(0,3).col(3)=-Rwc.t()*twc;
+		//
+	//	mpMapPublisher->SetCurrentCameraPose(mCurrentFrame.mTcw);
+	//	mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3) = Rwc1;
+	//	mCurrentFrame.mTcw.rowRange(0,3).col(3) = twc1;
+		//
         tf::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
                         Rwc.at<float>(1,0),Rwc.at<float>(1,1),Rwc.at<float>(1,2),
                         Rwc.at<float>(2,0),Rwc.at<float>(2,1),Rwc.at<float>(2,2));
@@ -362,36 +493,57 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         // outfile<<"Translation: "<<"\n";
         outfile<<twc.at<float>(0)<<" "<<twc.at<float>(1)<<" "<<twc.at<float>(2)<<"\n";
     #endif
+		//recover
+		Rwc = mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3).t();
+		twc = -Rwc*mCurrentFrame.mTcw.rowRange(0,3).col(3);
     #ifdef CALSCALE
-		//if(mState == WORKING)
+        //add data and calculate scale
+        ORB_SLAM::tCamPose TmpCamPose;
+        //timestamp
+        TmpCamPose.TimeStamp = mCurrentFrame.mTimeStamp;
+        //rotation
+        TmpCamPose.Rotation[0][0]=Rwc.at<float>(0,0);TmpCamPose.Rotation[0][1]=Rwc.at<float>(0,1);TmpCamPose.Rotation[0][2]=Rwc.at<float>(0,2);
+        TmpCamPose.Rotation[1][0]=Rwc.at<float>(1,0);TmpCamPose.Rotation[1][1]=Rwc.at<float>(1,1);TmpCamPose.Rotation[1][2]=Rwc.at<float>(1,2);
+        TmpCamPose.Rotation[2][0]=Rwc.at<float>(2,0);TmpCamPose.Rotation[2][1]=Rwc.at<float>(2,1);TmpCamPose.Rotation[2][2]=Rwc.at<float>(2,2);
+        //tr
+        TmpCamPose.Translation[0]=twc.at<float>(0);
+        TmpCamPose.Translation[1]=twc.at<float>(1);
+        TmpCamPose.Translation[2]=twc.at<float>(2);
+        //
+        //cout<<"enter calculate scale"<<endl;
+        mpCurrentCalScale->mAddCamPose(TmpCamPose);
+        //cout<<"mAddCamPose(TmpCamPose);"<<endl;
+        mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
+        //cout<<"mAlignCamAndIMU"<<endl;
+        mpCurrentCalScale->mIfStartToCalScale();
+        //cout<<"mIfStartToCalScale"<<endl;
+        mpCurrentCalScale->mIfStartToMedian();
+        //cout<<"mIfStartToMedian"<<endl;
+        mpCurrentCalScale->mCalRawScale();
+        //cout<<"mCalRawScale"<<endl;
+		if(mpCurrentCalScale->mfFinalScale<0 && mpCurrentCalScale->mbTimeToGetFinalScale == true)
 		{
-			//add data and calculate scale
-			ORB_SLAM::CalculateScale::tCamPose TmpCamPose;
-			//timestamp
-			TmpCamPose.TimeStamp = mCurrentFrame.mTimeStamp;
-			//rotation
-			TmpCamPose.Rotation[0][0]=Rwc.at<float>(0,0);TmpCamPose.Rotation[0][1]=Rwc.at<float>(0,1);TmpCamPose.Rotation[0][2]=Rwc.at<float>(0,2);
-			TmpCamPose.Rotation[1][0]=Rwc.at<float>(1,0);TmpCamPose.Rotation[1][1]=Rwc.at<float>(1,1);TmpCamPose.Rotation[1][2]=Rwc.at<float>(1,2);
-			TmpCamPose.Rotation[2][0]=Rwc.at<float>(2,0);TmpCamPose.Rotation[2][1]=Rwc.at<float>(2,1);TmpCamPose.Rotation[2][2]=Rwc.at<float>(2,2);
-			//tr
-			TmpCamPose.Translation[0]=twc.at<float>(0);
-			TmpCamPose.Translation[1]=twc.at<float>(1);
-			TmpCamPose.Translation[2]=twc.at<float>(2);
+			mpCurrentCalScale->mCalFinalScale();
+			//now mpCurrentCalScale->mfFinalScale must be bigger than zero.
+			float fFinalScale = mpCurrentCalScale->mGetFinalScale();
 			//
-			//cout<<"enter calculate scale"<<endl;
-			mpCurrentCalScale->mAddCamPose(TmpCamPose);
-			//cout<<"mAddCamPose(TmpCamPose);"<<endl;
-			mpCurrentCalScale->mAlignCamAndIMU(mIMUSub);//get IMU data through the pIMUSub pointer, then align
-			//cout<<"mAlignCamAndIMU"<<endl;
-			mpCurrentCalScale->mIfStartToCalScale();
-			//cout<<"mIfStartToCalScale"<<endl;
-			mpCurrentCalScale->mIfStartToMedian();
-			//cout<<"mIfStartToMedian"<<endl;
-			mpCurrentCalScale->mCalRawScale();
-			//cout<<"mCalRawScale"<<endl;
-			//mpCurrentCalScale->mMedian();
-			//cout<<"mMedian"<<endl;
+			cv::Mat Rwc;
+			cv::Mat twc;
+			long lKeyFrameNum = (mpMap->mvpKeyFramesForPublish).size();
+			//if((mpCurrentCalScale->mvfScaleAfterMedian).size()<mpCurrentCalScale->mnStartToCalFinalScale)
+			{
+				cout<<"Get ";
+				for(int i=mpCurrentCalScale->mlFirstLostKeyFrameIndx;i<lKeyFrameNum;i++)
+				{
+					Rwc = (mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).colRange(0,3).t();
+					twc = -Rwc*(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3);
+					twc = (twc-mMFinalCamPoseTranslation)*fFinalScale + mMFinalCamPoseTranslation;
+					(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3) = -(Rwc.t())*twc;
+				}
+				cout<<"scale: "<<fFinalScale<<endl;
+			}
 		}
+
     #endif
 
 //******************edit by liwb **************************************//
@@ -420,7 +572,26 @@ void Tracking::FirstInitialization()
         mState = INITIALIZING;
     }
 }
+void Tracking::FirstReInitialization()
+{
+    //We ensure a minimum ORB features to continue, otherwise discard frame
+    if(mCurrentFrame.mvKeys.size()>100)
+    {
+        mInitialFrame = Frame(mCurrentFrame);
+        mLastFrame = Frame(mCurrentFrame);
+        mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
+        for(size_t i=0; i<mCurrentFrame.mvKeysUn.size(); i++)
+            mvbPrevMatched[i]=mCurrentFrame.mvKeysUn[i].pt;
 
+        if(mpInitializer)
+            delete mpInitializer;
+
+        mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
+
+
+        mState = REINITIALIZING;
+    }
+}
 void Tracking::Initialize()
 {
     // Check if current frame has enough keypoints, otherwise reset initialization process
@@ -456,11 +627,51 @@ void Tracking::Initialize()
                 nmatches--;
             }
         }
+
         CreateInitialMap(Rcw,tcw);
     }
 
 }
+void Tracking::ReInitialize()
+{
+    // Check if current frame has enough keypoints, otherwise reset initialization process
+    if(mCurrentFrame.mvKeys.size()<=100)
+    {
+        fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
+        mState = LOST;
+        return;
+    }
 
+    // Find correspondences
+    ORBmatcher matcher(0.9,true);
+    int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
+
+    // Check if there are enough correspondences
+    if(nmatches<100)
+    {
+        mState = LOST;
+        return;
+    }
+
+    cv::Mat Rcw; // Current Camera Rotation
+    cv::Mat tcw; // Current Camera Translation
+    vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
+
+    if(mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
+    {
+        for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
+        {
+            if(mvIniMatches[i]>=0 && !vbTriangulated[i])
+            {
+                mvIniMatches[i]=-1;
+                nmatches--;
+            }
+        }
+
+        ReCreateInitialMap(Rcw,tcw);
+    }
+
+}
 void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
 {
     // Set Frame Poses
@@ -525,7 +736,6 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     {
         ROS_INFO("Wrong initialization, reseting...");
         Reset();
-		//Reset2();
         return;
     }
 
@@ -563,23 +773,110 @@ void Tracking::CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
 
     mState=WORKING;
-#ifdef CALSCALE
-
-	if(mpCurrentCalScale)
-	{
-		delete mpCurrentCalScale;
-		cout<<"delete mpCurrentCalScale successfully"<<endl;
-	}
-   //if(mState==WORKING)//it means initializing successfully
-    {
-        cout<<"begin to creat a new object of CalculateScale"<<endl;
-        //cout<<mpCurrentCalScale<<endl;
-        mpCurrentCalScale = new CalculateScale;
-        cout<<"successfully creat a new object of CalculateScale"<<endl;
-    }
-#endif
 }
+void Tracking::ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
+{
+    // Set Frame Poses
+    mInitialFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    mCurrentFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
+    Rcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3));
+    tcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).col(3));
 
+    // Create KeyFrames
+    KeyFrame* pKFini = new KeyFrame(mInitialFrame,mpMap,mpKeyFrameDB);
+    KeyFrame* pKFcur = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
+
+    pKFini->ComputeBoW();
+    pKFcur->ComputeBoW();
+
+    // Insert KFs in the map
+    mpMap->AddKeyFrame(pKFini);
+    mpMap->AddKeyFrame(pKFcur);
+
+    // Create MapPoints and asscoiate to keyframes
+    for(size_t i=0; i<mvIniMatches.size();i++)
+    {
+        if(mvIniMatches[i]<0)
+            continue;
+
+        //Create MapPoint.
+        cv::Mat worldPos(mvIniP3D[i]);
+
+        MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
+
+        pKFini->AddMapPoint(pMP,i);
+        pKFcur->AddMapPoint(pMP,mvIniMatches[i]);
+
+        pMP->AddObservation(pKFini,i);
+        pMP->AddObservation(pKFcur,mvIniMatches[i]);
+
+        pMP->ComputeDistinctiveDescriptors();
+        pMP->UpdateNormalAndDepth();
+
+        //Fill Current Frame structure
+        mCurrentFrame.mvpMapPoints[mvIniMatches[i]] = pMP;
+
+        //Add to Map
+        mpMap->AddMapPoint(pMP);
+
+    }
+
+    // Update Connections
+    pKFini->UpdateConnections();
+    pKFcur->UpdateConnections();
+
+    // Bundle Adjustment
+    ROS_INFO("New Map created with %d points",mpMap->MapPointsInMap());
+
+    Optimizer::GlobalBundleAdjustemnt(mpMap,20);
+
+    // Set median depth to 1
+    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    float invMedianDepth = 1.0f/medianDepth;
+
+    if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
+    {
+        ROS_INFO("Wrong initialization, reseting...");
+        //Reset2();
+        mState = LOST;
+		return;
+    }
+
+    // Scale initial baseline
+    cv::Mat Tc2w = pKFcur->GetPose();
+    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+    pKFcur->SetPose(Tc2w);
+
+    // Scale points
+    vector<MapPoint*> vpAllMapPoints = pKFini->GetMapPointMatches();
+    for(size_t iMP=0; iMP<vpAllMapPoints.size(); iMP++)
+    {
+        if(vpAllMapPoints[iMP])
+        {
+            MapPoint* pMP = vpAllMapPoints[iMP];
+            pMP->SetWorldPos(pMP->GetWorldPos()*invMedianDepth);
+        }
+    }
+
+    mpLocalMapper->InsertKeyFrame(pKFini);
+    mpLocalMapper->InsertKeyFrame(pKFcur);
+
+    mCurrentFrame.mTcw = pKFcur->GetPose().clone();
+    mLastFrame = Frame(mCurrentFrame);
+    mnLastKeyFrameId=mCurrentFrame.mnId;
+    mpLastKeyFrame = pKFcur;
+
+    mvpLocalKeyFrames.push_back(pKFcur);
+    mvpLocalKeyFrames.push_back(pKFini);
+    mvpLocalMapPoints=mpMap->GetAllMapPoints();
+    mpReferenceKF = pKFcur;
+
+    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+    mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
+
+    mState=WORKING;
+}
 
 bool Tracking::TrackPreviousFrame()
 {
@@ -760,10 +1057,29 @@ bool Tracking::NeedNewKeyFrame()
         return false;
 }
 
-void Tracking::CreateNewKeyFrame()
+void Tracking::CreateNewKeyFrame(cv::Mat& MTransformRotation,cv::Mat& MFinalCamPoseTranslation,float fFinalScale)
 {
     KeyFrame* pKF = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
+	//(pKF->TcwForPublish)=(pKF->Tcw).clone();
+	cv::Mat Rwc = (pKF->Tcw).rowRange(0,3).colRange(0,3).t();
+	cv::Mat twc = -Rwc*(pKF->Tcw).rowRange(0,3).col(3);
+	//convert
+//	Rwc.convertTo(Rwc,CV_64F);
+//	twc.convertTo(twc,CV_64F);
+	Rwc=MTransformRotation*Rwc;
+	if(fFinalScale<0)
+		twc=MTransformRotation*twc+MFinalCamPoseTranslation;
+	else
+		twc=MTransformRotation*twc*fFinalScale+MFinalCamPoseTranslation;
+	//
+	(pKF->TcwForPublish).rowRange(0,3).colRange(0,3)=Rwc.t();
+	(pKF->TcwForPublish).rowRange(0,3).col(3)=-Rwc.t()*twc;
 
+	//
+	pKF->mMTransformRotation = MTransformRotation;
+	pKF->mMFinalCamPoseTranslation = MFinalCamPoseTranslation;
+	
+	//
     mpLocalMapper->InsertKeyFrame(pKF);
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
@@ -1160,6 +1476,45 @@ void Tracking::Reset()
     }
 }
 
+void Tracking::Reset2()
+{
+    {
+        boost::mutex::scoped_lock lock(mMutexReset);
+        mbPublisherStopped = false;
+        mbReseting = true;
+    }
+
+    // Wait until publishers are stopped
+    ros::Rate r(500);
+    while(1)
+    {
+        {
+            boost::mutex::scoped_lock lock(mMutexReset);
+            if(mbPublisherStopped)
+                break;
+        }
+        r.sleep();
+    }
+
+    // Reset Local Mapping
+    //mpLocalMapper->RequestReset();
+    // Reset Loop Closing
+    //mpLoopClosing->RequestReset();
+    // Clear BoW Database
+    //mpKeyFrameDB->clear();
+    // Clear Map (this erase MapPoints and KeyFrames)
+    //mpMap->clear();
+
+    //KeyFrame::nNextId = 0;
+    //Frame::nNextId = 0;
+    mState = LOST;
+
+    {
+        boost::mutex::scoped_lock lock(mMutexReset);
+        mbReseting = false;
+    }
+}
+
 void Tracking::CheckResetByPublishers()
 {
     bool bReseting = false;
@@ -1191,224 +1546,4 @@ void Tracking::CheckResetByPublishers()
     }
 }
 
-void Tracking::FirstReInitialization()
-{
-    //We ensure a minimum ORB features to continue, otherwise discard frame
-    if(mCurrentFrame.mvKeys.size()>100)
-    {
-        mInitialFrame = Frame(mCurrentFrame);
-        mLastFrame = Frame(mCurrentFrame);
-        mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
-        for(size_t i=0; i<mCurrentFrame.mvKeysUn.size(); i++)
-            mvbPrevMatched[i]=mCurrentFrame.mvKeysUn[i].pt;
-
-        if(mpInitializer)
-            delete mpInitializer;
-
-        mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
-
-
-        mState = REINITIALIZING;
-    }
-}
-
-void Tracking::ReInitialize()
-{
-    // Check if current frame has enough keypoints, otherwise reset initialization process
-    if(mCurrentFrame.mvKeys.size()<=100)
-    {
-        fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
-        mState = LOST;
-        return;
-    }
-
-    // Find correspondences
-    ORBmatcher matcher(0.9,true);
-    int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
-
-    // Check if there are enough correspondences
-    if(nmatches<100)
-    {
-        mState = LOST;
-        return;
-    }
-
-    cv::Mat Rcw; // Current Camera Rotation
-    cv::Mat tcw; // Current Camera Translation
-    vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
-
-    if(mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
-    {
-        for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
-        {
-            if(mvIniMatches[i]>=0 && !vbTriangulated[i])
-            {
-                mvIniMatches[i]=-1;
-                nmatches--;
-            }
-        }
-
-        ReCreateInitialMap(Rcw,tcw);
-		cout<<"ReCreateInitialMap(Rcw,tcw);"<<endl;
-
-    }
-
-}
-
-void Tracking::Reset2()
-{
-    {
-        boost::mutex::scoped_lock lock(mMutexReset);
-        mbPublisherStopped = false;
-        mbReseting = true;
-    }
-
-    // Wait until publishers are stopped
-    ros::Rate r(500);
-    while(1)
-    {
-        {
-            boost::mutex::scoped_lock lock(mMutexReset);
-            if(mbPublisherStopped)
-                break;
-        }
-        r.sleep();
-    }
-
-    // Reset Local Mapping
-    //mpLocalMapper->RequestReset();
-    // Reset Loop Closing
-    //mpLoopClosing->RequestReset();
-    // Clear BoW Database
-    //mpKeyFrameDB->clear();
-    // Clear Map (this erase MapPoints and KeyFrames)
-   // mpMap->clear();
-
-   // KeyFrame::nNextId = 0;
-   // Frame::nNextId = 0;
-    mState = LOST;
-
-    {
-        boost::mutex::scoped_lock lock(mMutexReset);
-        mbReseting = false;
-    }
-}
-void Tracking::ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
-{
-    // Set Frame Poses
-    mInitialFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
-    mCurrentFrame.mTcw = cv::Mat::eye(4,4,CV_32F);
-    Rcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).colRange(0,3));
-    tcw.copyTo(mCurrentFrame.mTcw.rowRange(0,3).col(3));
-
-    // Create KeyFrames
-    KeyFrame* pKFini = new KeyFrame(mInitialFrame,mpMap,mpKeyFrameDB);
-    KeyFrame* pKFcur = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
-
-    pKFini->ComputeBoW();
-    pKFcur->ComputeBoW();
-
-    // Insert KFs in the map
-    mpMap->AddKeyFrame(pKFini);
-    mpMap->AddKeyFrame(pKFcur);
-
-    // Create MapPoints and asscoiate to keyframes
-    for(size_t i=0; i<mvIniMatches.size();i++)
-    {
-        if(mvIniMatches[i]<0)
-            continue;
-
-        //Create MapPoint.
-        cv::Mat worldPos(mvIniP3D[i]);
-
-        MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
-
-        pKFini->AddMapPoint(pMP,i);
-        pKFcur->AddMapPoint(pMP,mvIniMatches[i]);
-
-        pMP->AddObservation(pKFini,i);
-        pMP->AddObservation(pKFcur,mvIniMatches[i]);
-
-        pMP->ComputeDistinctiveDescriptors();
-        pMP->UpdateNormalAndDepth();
-
-        //Fill Current Frame structure
-        mCurrentFrame.mvpMapPoints[mvIniMatches[i]] = pMP;
-
-        //Add to Map
-        mpMap->AddMapPoint(pMP);
-
-    }
-
-    // Update Connections
-    pKFini->UpdateConnections();
-    pKFcur->UpdateConnections();
-
-    // Bundle Adjustment
-    ROS_INFO("New Map created with %d points",mpMap->MapPointsInMap());
-
-    Optimizer::GlobalBundleAdjustemnt(mpMap,20);
-
-    // Set median depth to 1
-    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
-    float invMedianDepth = 1.0f/medianDepth;
-
-    if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
-    {
-        ROS_INFO("Wrong initialization, reseting...");
-       // Reset2();
-		mState = LOST;
-        return;
-    }
-
-    // Scale initial baseline
-    cv::Mat Tc2w = pKFcur->GetPose();
-    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
-    pKFcur->SetPose(Tc2w);
-
-    // Scale points
-    vector<MapPoint*> vpAllMapPoints = pKFini->GetMapPointMatches();
-    for(size_t iMP=0; iMP<vpAllMapPoints.size(); iMP++)
-    {
-        if(vpAllMapPoints[iMP])
-        {
-            MapPoint* pMP = vpAllMapPoints[iMP];
-            pMP->SetWorldPos(pMP->GetWorldPos()*invMedianDepth);
-        }
-    }
-
-    mpLocalMapper->InsertKeyFrame(pKFini);
-    mpLocalMapper->InsertKeyFrame(pKFcur);
-
-    mCurrentFrame.mTcw = pKFcur->GetPose().clone();
-    mLastFrame = Frame(mCurrentFrame);
-    mnLastKeyFrameId=mCurrentFrame.mnId;
-    mpLastKeyFrame = pKFcur;
-
-    mvpLocalKeyFrames.push_back(pKFcur);
-    mvpLocalKeyFrames.push_back(pKFini);
-    mvpLocalMapPoints=mpMap->GetAllMapPoints();
-    mpReferenceKF = pKFcur;
-
-    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
-    mpMapPublisher->SetCurrentCameraPose(pKFcur->GetPose());
-
-    mState=WORKING;
-#ifdef CALSCALE
-
-	if(mpCurrentCalScale)
-	{
-		delete mpCurrentCalScale;
-		cout<<"delete mpCurrentCalScale successfully"<<endl;
-	}
-	//if(mState==WORKING)//it means initializing successfully
-    {
-        cout<<"begin to creat a new object of CalculateScale"<<endl;
-        //cout<<mpCurrentCalScale<<endl;
-        mpCurrentCalScale = new CalculateScale;
-        cout<<"successfully creat a new object of CalculateScale"<<endl;
-    }
-#endif
-}
 } //namespace ORB_SLAM

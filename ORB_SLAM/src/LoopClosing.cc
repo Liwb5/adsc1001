@@ -40,14 +40,6 @@ LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc):
 {
     mnCovisibilityConsistencyTh = 3;
     mpMatchedKF = NULL;
-    mlLoopKeyFrameQueueSize = 0;
-    mLastLoopKFidSize = 0;
-}
-
-void LoopClosing::setFlagBeforeLost()
-{
-    mlLoopKeyFrameQueueSize = mlpLoopKeyFrameQueue.size();
-    mLastLoopKFidSize = mLastLoopKFid;
 }
 
 void LoopClosing::SetTracker(Tracking *pTracker)
@@ -434,7 +426,7 @@ void LoopClosing::CorrectLoop()
         cv::Mat Tiw = pKFi->GetPose();
 
         if(pKFi!=mpCurrentKF)
-        {
+        {            
             cv::Mat Tic = Tiw*Twc;
             cv::Mat Ric = Tic.rowRange(0,3).colRange(0,3);
             cv::Mat tic = Tic.rowRange(0,3).col(3);
@@ -496,7 +488,7 @@ void LoopClosing::CorrectLoop()
 
         // Make sure connections are updated
         pKFi->UpdateConnections();
-    }
+    }    
 
     // Start Loop Fusion
     // Update matched map points and replace if duplicated
@@ -602,15 +594,8 @@ void LoopClosing::ResetIfRequested()
     boost::mutex::scoped_lock lock(mMutexReset);
     if(mbResetRequested)
     {
-        long tmp1 = mlpLoopKeyFrameQueue.size();
-        while (tmp1 > mlLoopKeyFrameQueueSize)
-        {
-            tmp1--;
-            mlpLoopKeyFrameQueue.pop_back();
-        }
-        mLastLoopKFid = mLastLoopKFidSize;
-        //mlpLoopKeyFrameQueue.clear();
-        //mLastLoopKFid=0;
+        mlpLoopKeyFrameQueue.clear();
+        mLastLoopKFid=0;
         mbResetRequested=false;
     }
 }

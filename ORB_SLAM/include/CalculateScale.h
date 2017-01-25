@@ -4,54 +4,39 @@
 #ifndef CALCULATESCALE_H
 #define CALCULATESCALE_H
 
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
-#include<sensor_msgs/Image.h>
-#include<sensor_msgs/image_encodings.h>
-
-#include"FramePublisher.h"
-#include"Map.h"
-#include"LocalMapping.h"
-#include"LoopClosing.h"
-#include"Frame.h"
-#include "ORBVocabulary.h"
-#include"KeyFrameDatabase.h"
-#include"ORBextractor.h"
-#include "Initializer.h"
-#include "MapPublisher.h"
-
+#include "imuSubscriber.h"
+#include <vector>
+#include <iostream>
+#include <fstream>
+using namespace std;
 namespace ORB_SLAM
 {
 
-class FramePublisher;
-class Map;
-class LocalMapping;
-class LoopClosing;
 class imuSubscriber;//IMU
-
+struct tCamPose //t means struct
+{
+	double TimeStamp;
+	float Rotation[3][3];
+	float Translation[3];
+};
+struct tIMUData //t means struct
+{
+	double TimeStamp;
+	float Quat[4];
+	float Acc[3];
+};
 class CalculateScale
 {
 public:
 	CalculateScale();
 	CalculateScale(const CalculateScale &CalScale); //copy all the data
-	~CalculateScale();
-	struct tCamPose //t means struct
-	{
-		double TimeStamp;
-		float Rotation[3][3];
-		float Translation[3];
-	};
-	struct tIMUData //t means struct
-	{
-		double TimeStamp;
-		float Quat[4];
-		float Acc[3];
-	};
+
+	
 
 	//tCamPose* mpCamPose;
 	void mAddCamPose(tCamPose& pCamPose);
 	void mRotateVectorByQuaternion(float* q,float* acc);
-	void mQuatToDcm(float* q, float rot[][3]);
+	void mQuatToDcm(double* q, double rot[][3]);
 	void mAddIMUData(imuSubscriber* pIMUSub,long AlignedIndx);
 	void mAlignCamAndIMU(imuSubscriber* pIMUSub);
 	void mIfStartToCalScale();
@@ -63,11 +48,10 @@ public:
 	long mGetLastAlignedIndx();
 	void mGetLastTranslation(float* LastTrans);
 	tCamPose mCurCamPose;//edit 1001
-
+	
 //private:
 	//IMU
 	imuSubscriber* mpIMUSub;
-	ofstream outfile_scale_med; //save scale_med into a txt file
 	//
 	bool mbStartToMedian;//init to be false
 	bool mbStartToCalScale;//init to be false
@@ -80,12 +64,19 @@ public:
 	vector<float> mvfScale;//vector of raw scale data
 	vector<float> mvfScaleAfterMedian;//vector of scale data after median process
 
-	int mnImageStep;
-	int mnImageWindowForDisplacement;
-    int mnWindowForMedian;
+	unsigned int mnImageStep;
+	unsigned int mnImageWindowForDisplacement;
+    unsigned int mnWindowForMedian;
 	long mlImageIndxForDisplacement;
 	float* mfRawScaleInWindow;
 	float mfFinalScale;//mean, or median
+	double mdScaleSum;
+	long mlFirstLostKeyFrameIndx;
+	long mlLastLostKeyFrameIndx;
+	int mnStartToCalFinalScale;
+	bool mbTimeToGetFinalScale;
+//	ofstream imu_outfile;
+//	ofstream scale_after_median_outfile;
 };
 }////namespace ORB_SLAM
 

@@ -1,15 +1,13 @@
 #include "imuSubscriber.h"
 #include <ros/ros.h>
 #include <iostream>
-#include <fstream>
 using namespace std;
-
-#define output_imuData
 
 namespace ORB_SLAM
 {
     imuSubscriber::imuSubscriber()
     {
+
     }
     void imuSubscriber::Run()
     {
@@ -31,12 +29,7 @@ namespace ORB_SLAM
         mIMUData.Quat.z = msg.quat_z;
 
         mvIMUData.push_back(mIMUData);
-    #ifdef output_imuData
-        *outfile_imuData<<1<<" "<<std::fixed<<mIMUData.timeStamp<<" "<<1<<" "<<1<<" "<<1<<" "<<1<<" ";
-        *outfile_imuData<<mIMUData.Quat.w<<" "<<mIMUData.Quat.x<<" "<<mIMUData.Quat.y<<" "<<mIMUData.Quat.z<<" ";//quaternion
-        *outfile_imuData<<mIMUData.LinearAccel.x<<" "<<mIMUData.LinearAccel.y<<" "<<mIMUData.LinearAccel.z<<" ";//linear Acceleration
-        *outfile_imuData<<1<<" "<<1<<" "<<1<<endl;
-    #endif
+
         //test();//for debug
     }
 
@@ -53,3 +46,12 @@ namespace ORB_SLAM
 }//namespace ORB_SLAM
 
 
+/*
+int main(int argc,char **argv)
+{
+    ros::init(argc,argv,"imuData_subscriber");
+    ORB_SLAM::imuSubscriber imuSub;
+    imuSub.Run();
+    return 0;
+}
+*/

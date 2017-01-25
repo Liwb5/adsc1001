@@ -1356,7 +1356,8 @@ void Tracking::ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw)
     if(medianDepth<0 || pKFcur->TrackedMapPoints()<100)
     {
         ROS_INFO("Wrong initialization, reseting...");
-        Reset2();
+       // Reset2();
+		mState = LOST;
         return;
     }
 

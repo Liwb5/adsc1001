@@ -58,6 +58,8 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
 #ifdef saveRT2txt
     outfile.open("/home/liwb/Documents/output/R_and_T.txt",ios::binary);//record rotation and translation
 #endif
+	imu_outfile.open("/home/liwb/Documents/output/imu2.txt",ios::binary);
+	pIMUSub->outfile_imuData = &imu_outfile;
 
 //******************edit by liwb **************************************//
     // Load camera parameters from settings file
@@ -267,7 +269,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 					bOK = TrackPreviousFrame();
 				//	cout<<"TrackPreviousFrame function was called~~~~~~~~~"<<endl;
 				}
-                    
+
             }
         }
         else

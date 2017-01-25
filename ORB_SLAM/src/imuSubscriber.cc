@@ -11,7 +11,7 @@ namespace ORB_SLAM
     imuSubscriber::imuSubscriber()
     {
         #ifdef output_imuData
-        	outfile_imuData.open("/home/liwb/Documents/output/imu2.txt",ios::binary);//record imu data
+        //	outfile_imuData.open("/home/liwb/Documents/output/imu2.txt",ios::binary);//record imu data
         #endif
     }
     void imuSubscriber::Run()
@@ -35,10 +35,10 @@ namespace ORB_SLAM
 
         mvIMUData.push_back(mIMUData);
     #ifdef output_imuData
-        outfile_imuData<<1<<" "<<std::fixed<<mIMUData.timeStamp<<" "<<1<<" "<<1<<" "<<1<<" "<<1<<" ";
-        outfile_imuData<<mIMUData.Quat.w<<" "<<mIMUData.Quat.x<<" "<<mIMUData.Quat.y<<" "<<mIMUData.Quat.z<<" ";//quaternion
-        outfile_imuData<<mIMUData.LinearAccel.x<<" "<<mIMUData.LinearAccel.y<<" "<<mIMUData.LinearAccel.z<<" ";//linear Acceleration
-        outfile_imuData<<1<<" "<<1<<" "<<1<<endl;
+        *outfile_imuData<<1<<" "<<std::fixed<<mIMUData.timeStamp<<" "<<1<<" "<<1<<" "<<1<<" "<<1<<" ";
+        *outfile_imuData<<mIMUData.Quat.w<<" "<<mIMUData.Quat.x<<" "<<mIMUData.Quat.y<<" "<<mIMUData.Quat.z<<" ";//quaternion
+        *outfile_imuData<<mIMUData.LinearAccel.x<<" "<<mIMUData.LinearAccel.y<<" "<<mIMUData.LinearAccel.z<<" ";//linear Acceleration
+        *outfile_imuData<<1<<" "<<1<<" "<<1<<endl;
     #endif
         //test();//for debug
     }

@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/hmx/ws_catkin/src/imu_image/build/devel/setup.sh

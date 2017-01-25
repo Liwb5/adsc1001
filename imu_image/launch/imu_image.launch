@@ -1,0 +1,10 @@
+<launch>
+  <node name="BNO_talker_node" pkg="imu_image" type="imu_recieve" output="screen">
+  </node>
+
+  <node name="image_converter" pkg="imu_image" type="image_recieve" output="screen">
+  </node>
+
+</launch>
+
+

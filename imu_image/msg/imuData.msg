@@ -1,0 +1,15 @@
+int64 count
+float64 timeStamp
+float32 gravWithAccel_x
+float32 gravWithAccel_y
+float32 gravWithAccel_z
+float32 quat_w
+float32 quat_x
+float32 quat_y
+float32 quat_z
+float32 linearAccel_x
+float32 linearAccel_y
+float32 linearAccel_z
+float32 gravity_x
+float32 gravity_y
+float32 gravity_z

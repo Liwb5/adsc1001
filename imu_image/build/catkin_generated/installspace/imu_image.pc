@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: imu_image
+Description: Description of imu_image
+Version: 0.0.0
+Cflags: -I/usr/local/include
+Libs: -L/usr/local/lib -limu_image
+Requires: message_runtime

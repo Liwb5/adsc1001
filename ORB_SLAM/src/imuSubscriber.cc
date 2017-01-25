@@ -10,9 +10,6 @@ namespace ORB_SLAM
 {
     imuSubscriber::imuSubscriber()
     {
-        #ifdef output_imuData
-        //	outfile_imuData.open("/home/liwb/Documents/output/imu2.txt",ios::binary);//record imu data
-        #endif
     }
     void imuSubscriber::Run()
     {
@@ -56,12 +53,3 @@ namespace ORB_SLAM
 }//namespace ORB_SLAM
 
 
-/*
-int main(int argc,char **argv)
-{
-    ros::init(argc,argv,"imuData_subscriber");
-    ORB_SLAM::imuSubscriber imuSub;
-    imuSub.Run();
-    return 0;
-}
-*/

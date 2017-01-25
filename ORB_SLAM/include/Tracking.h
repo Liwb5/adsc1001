@@ -69,11 +69,18 @@ public:
     Tracking(ORBVocabulary* pVoc, FramePublisher* pFramePublisher, MapPublisher* pMapPublisher, Map* pMap, string strSettingPath,imuSubscriber* pIMUSub);
 
     ofstream outfile;//save RT data to txt
-	ofstream imu_outfile;
+	ofstream imu_outfile;//save imu data to txt
+//	ofstream scale_med_outfile;//save scale_med data to txt
+	
     //subscribe imu data from topic /imuData
     imuSubscriber* mIMUSub;
     vector<CalculateScale> mvCalScale;//all
 	CalculateScale* mpCurrentCalScale;  //current
+	
+	void ReInitialize();
+    void FirstReInitialization();
+    void ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
+    void Reset2();
 //******************edit by liwb **************************************//
     enum eTrackingState{
         SYSTEM_NOT_READY=-1,
@@ -84,10 +91,7 @@ public:
         LOST=4,
         REINITIALIZING=5
     };
-    void ReInitialize();
-    void FirstReInitialization();
-    void ReCreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
-    
+	
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetKeyFrameDatabase(KeyFrameDatabase* pKFDB);
@@ -122,7 +126,6 @@ protected:
     void CreateInitialMap(cv::Mat &Rcw, cv::Mat &tcw);
 	
     void Reset();
-	void Reset2();
 
     bool TrackPreviousFrame();
     bool TrackWithMotionModel();

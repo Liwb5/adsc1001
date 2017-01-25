@@ -51,6 +51,7 @@ public:
 	//tCamPose* mpCamPose;
 	void mAddCamPose(tCamPose& pCamPose);
 	void mRotateVectorByQuaternion(float* q,float* acc);
+	void mQuatToDcm(float* q, float rot[][3]);
 	void mAddIMUData(imuSubscriber* pIMUSub,long AlignedIndx);
 	void mAlignCamAndIMU(imuSubscriber* pIMUSub);
 	void mIfStartToCalScale();

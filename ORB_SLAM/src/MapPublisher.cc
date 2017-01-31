@@ -151,11 +151,13 @@ void MapPublisher::PublishMapPoints(const vector<MapPoint*> &vpMPs, const vector
             continue;
         geometry_msgs::Point p;
         cv::Mat pos = vpMPs[i]->GetWorldPos();
+		/*
 		std::map<KeyFrame*,size_t> frames = vpMPs[i]->GetObservations();
 		std::map<KeyFrame*,size_t>::iterator it = frames.begin();
 		cv::Mat mMTransformRotation = (it->first)->mMTransformRotation;
 		cv::Mat mMFinalCamPoseTranslation = (it->first)->mMFinalCamPoseTranslation;
 		pos = mMTransformRotation*pos + mMFinalCamPoseTranslation;
+		*/
         p.x=pos.at<float>(0);
         p.y=pos.at<float>(1);
         p.z=pos.at<float>(2);

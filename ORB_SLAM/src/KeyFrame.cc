@@ -56,7 +56,34 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
 //	TcwForPublish.convertTo(TcwForPublish,CV_64F);
 	mMTransformRotation = (cv::Mat_<float>(3,3) << 1,0,0,0,1,0,0,0,1);
 	mMFinalCamPoseTranslation = (cv::Mat_<float>(3,1) << 0,0,0);
+	mdScale = 1.0;
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~edit by liwb~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+void KeyFrame::setRotate(cv::Mat& rotate)
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+	rotate.copyTo(mMTransformRotation);
+}
+
+void KeyFrame::setTranslate(cv::Mat& translate)
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+	translate.copyTo(mMFinalCamPoseTranslation);
+}
+
+cv::Mat KeyFrame::getRotate()
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+	return mMTransformRotation.clone();
+}
+
+cv::Mat KeyFrame::getTranslate()
+{
+	boost::mutex::scoped_lock lock(mMutexPose);
+	return mMFinalCamPoseTranslation.clone();	
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~edit by liwb~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
 void KeyFrame::ComputeBoW()
 {

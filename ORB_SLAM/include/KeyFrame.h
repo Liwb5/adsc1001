@@ -203,6 +203,11 @@ public:
     std::vector<MapPoint*> mvpMapPoints;
 	cv::Mat mMTransformRotation;
 	cv::Mat mMFinalCamPoseTranslation;
+	double mdScale;
+	cv::Mat getRotate();
+	cv::Mat getTranslate();
+	void setRotate(cv::Mat& rotate);
+	void setTranslate(cv::Mat& translate);
 
     // BoW
     KeyFrameDatabase* mpKeyFrameDB;

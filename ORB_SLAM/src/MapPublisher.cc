@@ -128,7 +128,8 @@ void MapPublisher::Refresh()
     {
         vector<KeyFrame*> vKeyFrames = mpMap->GetAllKeyFrames();
 
-        vector<MapPoint*> vMapPointsForPublish = mpMap->GetAllMapPointsForPublish();//edited
+        //vector<MapPoint*> vMapPointsForPublish = mpMap->GetAllMapPointsForPublish();//edited
+		vector<MapPoint*> vMapPointsForPublish = mpMap->GetAllMapPoints();
         vector<MapPoint*> vRefMapPoints = mpMap->GetReferenceMapPoints();
 
         PublishMapPoints(vMapPointsForPublish, vRefMapPoints); //edited  
@@ -158,6 +159,11 @@ void MapPublisher::PublishMapPoints(const vector<MapPoint*> &vpMPs, const vector
 		cv::Mat mMFinalCamPoseTranslation = (it->first)->mMFinalCamPoseTranslation;
 		pos = mMTransformRotation*pos + mMFinalCamPoseTranslation;
 		*/
+		KeyFrame* frame = vpMPs[i]->GetReferenceKeyFrame();
+	    cv::Mat mMTransformRotation = frame->getRotate();
+		cv::Mat mMFinalCamPoseTranslation = frame->getTranslate();
+		double scale = frame->mdScale;
+		pos = mMTransformRotation*pos*scale + mMFinalCamPoseTranslation;
         p.x=pos.at<float>(0);
         p.y=pos.at<float>(1);
         p.z=pos.at<float>(2);
@@ -170,7 +176,20 @@ void MapPublisher::PublishMapPoints(const vector<MapPoint*> &vpMPs, const vector
         if((*sit)->isBad())
             continue;
         geometry_msgs::Point p;
+		
         cv::Mat pos = (*sit)->GetWorldPos();
+		/*
+		std::map<KeyFrame*,size_t> frames = (*sit)->GetObservations();
+		std::map<KeyFrame*,size_t>::iterator it = frames.begin();
+		cv::Mat mMTransformRotation = (it->first)->mMTransformRotation;
+		cv::Mat mMFinalCamPoseTranslation = (it->first)->mMFinalCamPoseTranslation;
+		pos = mMTransformRotation*pos + mMFinalCamPoseTranslation;
+		*/
+		KeyFrame* frame = (*sit)->GetReferenceKeyFrame();
+		cv::Mat mMTransformRotation = frame->getRotate();
+		cv::Mat mMFinalCamPoseTranslation = frame->getTranslate();
+		double scale = frame->mdScale;
+		pos = mMTransformRotation*pos*scale + mMFinalCamPoseTranslation;
         p.x=pos.at<float>(0);
         p.y=pos.at<float>(1);
         p.z=pos.at<float>(2);

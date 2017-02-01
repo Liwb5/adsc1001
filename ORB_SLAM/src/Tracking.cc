@@ -548,6 +548,7 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 					twc = -Rwc*(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3);
 					twc = (twc-mMFinalCamPoseTranslation)*fFinalScale + mMFinalCamPoseTranslation;
 					(mpMap->mvpKeyFramesForPublish[i]->TcwForPublish).rowRange(0,3).col(3) = -(Rwc.t())*twc;
+					mpMap->mvpKeyFramesForPublish[i]->mdScale = fFinalScale;
 				}
 				cout<<"scale: "<<fFinalScale<<endl;
 			}
@@ -1086,8 +1087,15 @@ void Tracking::CreateNewKeyFrame(cv::Mat& MTransformRotation,cv::Mat& MFinalCamP
 	(pKF->TcwForPublish).rowRange(0,3).col(3)=-Rwc.t()*twc;
 
 	//
-	pKF->mMTransformRotation = MTransformRotation;
-	pKF->mMFinalCamPoseTranslation = MFinalCamPoseTranslation;
+//	pKF->mMTransformRotation = MTransformRotation;
+//	pKF->mMFinalCamPoseTranslation = MFinalCamPoseTranslation;
+	pKF->setRotate(MTransformRotation);
+	pKF->setTranslate(MFinalCamPoseTranslation);
+	if(fFinalScale<0)
+		pKF->mdScale = 1;
+	else
+		pKF->mdScale = fFinalScale;
+	
 	
 	//
     mpLocalMapper->InsertKeyFrame(pKF);
